@@ -14,23 +14,26 @@ pnpm passport:scan -- --nickname my_handle --country KR --timezone Asia/Seoul
 
 High-Vive is a vibe-coder benchmark league. A candidate's local Codex evaluates
 real work evidence with a versioned protocol; the server validates the Passport,
-recalculates the eight-metric Benchmark OVR, assigns a provisional ELO and tier,
+recalculates the ten-metric percentile Benchmark OVR, assigns ELO and tier,
 and publishes the result to a field-specific leaderboard.
 
 The server does not call an LLM.
 
 ## Product model
 
-- **Benchmark OVR (0–1000):** weighted score across eight AI-collaboration metrics
-- **Provisional ELO:** `600 + Benchmark OVR + Witness bonus`
+- **Benchmark OVR (0–100):** weighted score across ten calibrated metric percentiles
+- **ELO:** the primary ranking signal, derived from percentile OVR and verification reliability
 - **Tier:** Iron, Bronze, Silver, Gold, Platinum, Emerald, Diamond, Master,
   Grandmaster, or Challenger; lower tiers use divisions IV–I
-- **Witness level:** confidence in evidence scope and continuity, separate from skill
+- **Verification reliability (0–100):** scope, continuity, and evidence integrity, separate from skill
+- **Fixed categories:** Frontend, Backend, Full-stack, Mobile & Desktop, Data & Analytics,
+  AI & ML Engineering, AI Ops & Automation, DevOps/Cloud/Infra, Security, and Product/Design/Content
 - **Passport:** public benchmark result, selected evidence hashes, and assessment scope
 
-The initial ELO is explicitly provisional because it is seeded from benchmark
-performance rather than head-to-head matches. Future assessment cycles can update
-it with normal ELO deltas.
+Each raw metric keeps one decimal place. High-Vive maps raw metrics to a versioned
+expert-cohort percentile curve before calculating OVR, preventing score inflation
+from collapsing the leaderboard into a narrow band. Future assessment cycles can
+update ELO with normal head-to-head or challenge deltas.
 
 ## Local development
 

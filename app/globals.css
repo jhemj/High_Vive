@@ -111,27 +111,6 @@ a {
   letter-spacing: 0.12em;
 }
 
-.site-nav {
-  display: flex;
-  justify-content: flex-end;
-  gap: clamp(22px, 3vw, 42px);
-  margin-right: 38px;
-}
-
-.site-nav a {
-  color: #d9d6ca;
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-decoration: none;
-  text-transform: uppercase;
-}
-
-.site-nav a:hover {
-  color: var(--lime);
-}
-
 .header-actions {
   display: flex;
   align-items: center;
@@ -454,6 +433,37 @@ a {
   font-weight: 900;
 }
 
+.tool-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.player-card > .tool-badges {
+  min-height: 22px;
+  margin-top: 5px;
+}
+
+.tool-badge {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid #45627a;
+  border-radius: 50%;
+  background: #102338;
+  color: #9dd8ff;
+  font-family: var(--font-mono);
+  font-size: 6px;
+  letter-spacing: -0.04em;
+}
+
+.tool-claude-code {
+  border-color: #a96f55;
+  background: #2c1e1a;
+  color: #f0aa83;
+}
+
 .card-field {
   margin-top: 6px;
   color: #aab8c5;
@@ -505,7 +515,7 @@ a {
 .ranking-table-head,
 .ranking-table button {
   display: grid;
-  grid-template-columns: 52px minmax(170px, 1.25fr) minmax(140px, 0.9fr) 80px 80px 72px;
+  grid-template-columns: 48px minmax(175px, 1.2fr) 104px minmax(130px, 0.85fr) 68px 96px 92px;
   align-items: center;
   gap: 14px;
 }
@@ -522,7 +532,7 @@ a {
   text-transform: uppercase;
 }
 
-.ranking-table-head span:nth-child(n + 4) {
+.ranking-table-head span:nth-child(n + 3) {
   text-align: center;
 }
 
@@ -596,6 +606,16 @@ a {
   font-size: 7px;
 }
 
+.table-trainer .tool-badges {
+  margin-top: 5px;
+}
+
+.table-trainer .tool-badge {
+  width: 17px;
+  height: 17px;
+  font-size: 5px;
+}
+
 .table-tier {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -604,25 +624,42 @@ a {
 }
 
 .table-elo,
-.table-witness,
-.table-score {
+.table-reliability,
+.table-score,
+.table-date {
   text-align: center;
 }
 
 .table-elo {
-  font-family: var(--font-mono);
-  font-size: 12px;
+  display: grid;
+  min-height: 42px;
+  place-items: center;
+  border: 1px solid rgba(53, 240, 195, 0.4);
+  background: rgba(53, 240, 195, 0.08);
+  color: var(--lime-hot);
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: -0.02em;
 }
 
-.table-witness {
-  color: var(--lime);
+.table-reliability {
+  padding: 7px 8px;
+  border: 1px solid #36536c;
+  color: #9ed2f3;
   font-family: var(--font-mono);
   font-size: 10px;
 }
 
 .table-score {
   font-family: var(--font-display);
-  font-size: 23px;
+  font-size: 18px;
+  color: #b7c7d3;
+}
+
+.table-date {
+  color: #71879a;
+  font-family: var(--font-mono);
+  font-size: 7px;
 }
 
 .scout-panel {
@@ -732,6 +769,11 @@ a {
   color: var(--lime);
 }
 
+.scout-badges > .tool-badges {
+  padding: 0;
+  border: 0;
+}
+
 .scout-tier-row {
   display: grid;
   grid-template-columns: 52px 1fr 1fr;
@@ -790,6 +832,46 @@ a {
   line-height: 1.55;
 }
 
+.assessment-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: -8px 0 20px;
+}
+
+.assessment-split section {
+  padding: 12px 13px;
+  border: 1px solid #294559;
+  background: rgba(28, 67, 91, 0.14);
+}
+
+.assessment-split .assessment-weaknesses {
+  border-color: #5a4546;
+  background: rgba(94, 55, 53, 0.12);
+}
+
+.assessment-split h3 {
+  margin: 0 0 7px;
+  color: var(--lime);
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.assessment-weaknesses h3 {
+  color: #ffb092;
+}
+
+.assessment-split ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 14px;
+  color: #aebdca;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
 .attribute-title b {
   color: #8fa4b7;
 }
@@ -837,6 +919,13 @@ a {
   white-space: nowrap;
 }
 
+.attribute > span:not(.attribute-tooltip) b {
+  margin-left: 3px;
+  color: var(--lime);
+  font-family: var(--font-mono);
+  font-size: 6px;
+}
+
 .attribute .attribute-tooltip {
   position: absolute;
   z-index: 20;
@@ -869,6 +958,15 @@ a {
   font-family: var(--font-display);
   font-size: 12px;
   letter-spacing: 0.04em;
+}
+
+.attribute .attribute-tooltip em {
+  display: block;
+  margin-top: 7px;
+  color: var(--lime);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-style: normal;
 }
 
 .attribute:hover .attribute-tooltip,
@@ -1663,10 +1761,6 @@ a {
 }
 
 @media (max-width: 1050px) {
-  .site-nav {
-    display: none;
-  }
-
   .site-header {
     grid-template-columns: 1fr auto;
   }
@@ -1765,11 +1859,15 @@ a {
 
   .ranking-table-head,
   .ranking-table button {
-    min-width: 720px;
+    min-width: 880px;
   }
 
   .scout-panel {
     padding: 28px 20px;
+  }
+
+  .assessment-split {
+    grid-template-columns: 1fr;
   }
 
   .hero-copy h1 {

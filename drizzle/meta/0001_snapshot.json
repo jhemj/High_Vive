@@ -1,0 +1,36 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "e821f4d0-2e22-4ba0-87c9-4c43cf6cb246",
+  "prevId": "3dcaef15-6557-4202-9357-8cead86888bd",
+  "tables": {
+    "passports": {
+      "name": "passports",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true, "notNull": true, "autoincrement": false },
+        "nickname": { "name": "nickname", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "country": { "name": "country", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "''" },
+        "timezone": { "name": "timezone", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false, "default": "''" },
+        "contact_opt_in": { "name": "contact_opt_in", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": false },
+        "primary_domain": { "name": "primary_domain", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "subfields_json": { "name": "subfields_json", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "summary": { "name": "summary", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "scores_json": { "name": "scores_json", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "reliability_score": { "name": "reliability_score", "type": "real", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "benchmark_score": { "name": "benchmark_score", "type": "real", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "confidence": { "name": "confidence", "type": "real", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "evidence_count": { "name": "evidence_count", "type": "integer", "primaryKey": false, "notNull": true, "autoincrement": false, "default": 0 },
+        "evidence_root": { "name": "evidence_root", "type": "text", "primaryKey": false, "notNull": false, "autoincrement": false },
+        "protocol_version": { "name": "protocol_version", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false },
+        "created_at": { "name": "created_at", "type": "text", "primaryKey": false, "notNull": true, "autoincrement": false }
+      },
+      "indexes": {
+        "passports_nickname_unique": { "name": "passports_nickname_unique", "columns": ["nickname"], "isUnique": true }
+      },
+      "foreignKeys": {}, "compositePrimaryKeys": {}, "uniqueConstraints": {}, "checkConstraints": {}
+    }
+  },
+  "views": {}, "enums": {},
+  "_meta": { "schemas": {}, "tables": {}, "columns": {} },
+  "internal": { "indexes": {} }
+}
