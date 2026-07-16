@@ -116,7 +116,7 @@ const metricDefinitions: Array<{
 
 const translations = {
   ko: {
-    navLeague: "리그", navPassport: "패스포트", navRules: "평가 규칙", createPassport: "내 패스포트 만들기",
+    navLeague: "리그", navPassport: "패스포트", navRules: "평가 규칙", createPassport: "내 패스포트 등록",
     seasonKicker: "HIGH-VIVE · 바이브코더 벤치마크", season: "시즌 01", leaderboard: "리더보드",
     trainers: "참가자", serverLlm: "서버 LLM", updated: "순위 기준", live: "ELO", allFields: "전체",
     rank: "순위", vibeCoder: "바이브코더", tier: "티어", evidence: "근거", ovr: "OVR",
@@ -142,7 +142,7 @@ const translations = {
     navLabel: "주요 메뉴", fieldFilterLabel: "분야 필터", podiumLabel: "상위 3명", registerError: "패스포트를 등록하지 못했습니다.",
   },
   en: {
-    navLeague: "League", navPassport: "Passport", navRules: "Rules", createPassport: "Create My Passport",
+    navLeague: "League", navPassport: "Passport", navRules: "Rules", createPassport: "Register My Passport",
     seasonKicker: "HIGH-VIVE · VIBE CODER BENCHMARK", season: "SEASON 01", leaderboard: "LEADERBOARD",
     trainers: "CODERS", serverLlm: "SERVER LLM", updated: "RANKED BY", live: "ELO", allFields: "All",
     rank: "Rank", vibeCoder: "Vibe Coder", tier: "Tier", evidence: "Evidence", ovr: "OVR",
