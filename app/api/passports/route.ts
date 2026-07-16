@@ -6,6 +6,28 @@ export const dynamic = "force-dynamic";
 
 const PROTOCOL_VERSION = "high-vive-witness-v0.1";
 
+const apiMessages = {
+  ko: {
+    loadError: "Passport를 불러오지 못했습니다.",
+    protocol: `protocolVersion은 ${PROTOCOL_VERSION}이어야 합니다.`,
+    nickname: "nickname은 3–24자의 영문 소문자, 숫자, 밑줄만 사용할 수 있습니다.",
+    fields: "분야, 30자 이상의 Codex 요약, 0–100 범위의 8개 점수를 확인하세요.",
+    submitError: "Passport를 등록하지 못했습니다.",
+  },
+  en: {
+    loadError: "Could not load Passports.",
+    protocol: `protocolVersion must be ${PROTOCOL_VERSION}.`,
+    nickname: "nickname must contain 3–24 lowercase letters, numbers, or underscores.",
+    fields: "Check the field, a Codex summary of at least 30 characters, and all eight scores from 0–100.",
+    submitError: "Could not register the Passport.",
+  },
+} as const;
+
+function messagesFor(request: Request) {
+  const locale = request.headers.get("x-high-vive-locale") ?? request.headers.get("accept-language") ?? "";
+  return apiMessages[locale.toLowerCase().startsWith("ko") ? "ko" : "en"];
+}
+
 const scoreKeys = [
   "contextPackaging",
   "aiDelegation",
@@ -27,8 +49,14 @@ type PassportRecord = {
   timezone: string;
   contactOptIn: boolean;
   primaryDomain: string;
+  primaryDomainKo?: string;
+  primaryDomainEn?: string;
   subfields: string[];
+  subfieldsKo?: string[];
+  subfieldsEn?: string[];
   summary: string;
+  summaryKo?: string;
+  summaryEn?: string;
   scores: Scores;
   witnessLevel: string;
   benchmarkScore: number;
@@ -64,7 +92,7 @@ const seededPassports: PassportRecord[] = [
       communicationQuality: 90,
     },
     witnessLevel: "W4",
-    benchmarkScore: 912,
+    benchmarkScore: 91,
     eloRating: 1587,
     tier: "Platinum",
     tierDivision: "II",
@@ -95,7 +123,7 @@ const seededPassports: PassportRecord[] = [
       communicationQuality: 76,
     },
     witnessLevel: "W3",
-    benchmarkScore: 884,
+    benchmarkScore: 88,
     eloRating: 1534,
     tier: "Platinum",
     tierDivision: "IV",
@@ -126,7 +154,7 @@ const seededPassports: PassportRecord[] = [
       communicationQuality: 94,
     },
     witnessLevel: "W2",
-    benchmarkScore: 861,
+    benchmarkScore: 86,
     eloRating: 1486,
     tier: "Gold",
     tierDivision: "I",
@@ -140,6 +168,39 @@ const seededPassports: PassportRecord[] = [
 
 function cleanText(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
+function parseLocalizedText(value: string) {
+  try {
+    const parsed = JSON.parse(value) as { ko?: unknown; en?: unknown };
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const ko = cleanText(parsed.ko, 420);
+      const en = cleanText(parsed.en, 420);
+      if (ko || en) return { ko: ko || en, en: en || ko };
+    }
+  } catch {
+    // Legacy rows stored a single display string.
+  }
+  return { ko: value, en: value };
+}
+
+function parseLocalizedList(value: string) {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) {
+      const items = parsed.map((item) => cleanText(item, 40)).filter(Boolean);
+      return { ko: items, en: items };
+    }
+    if (parsed && typeof parsed === "object") {
+      const source = parsed as { ko?: unknown; en?: unknown };
+      const ko = Array.isArray(source.ko) ? source.ko.map((item) => cleanText(item, 40)).filter(Boolean) : [];
+      const en = Array.isArray(source.en) ? source.en.map((item) => cleanText(item, 40)).filter(Boolean) : [];
+      return { ko: ko.length ? ko : en, en: en.length ? en : ko };
+    }
+  } catch {
+    // Invalid legacy data becomes an empty list instead of breaking the leaderboard.
+  }
+  return { ko: [] as string[], en: [] as string[] };
 }
 
 function parseScores(value: unknown): Scores | null {
@@ -167,20 +228,20 @@ function calculateBenchmarkScore(scores: Scores) {
     scores.toolFluency * 0.08 +
     scores.domainClarity * 0.06 +
     scores.communicationQuality * 0.06;
-  return Math.round(weighted * 10);
+  return Math.round(weighted);
 }
 
 const tierBands = [
-  { name: "Iron", min: 0, max: 899 },
-  { name: "Bronze", min: 900, max: 1099 },
-  { name: "Silver", min: 1100, max: 1299 },
-  { name: "Gold", min: 1300, max: 1499 },
-  { name: "Platinum", min: 1500, max: 1649 },
-  { name: "Emerald", min: 1650, max: 1799 },
-  { name: "Diamond", min: 1800, max: 1949 },
-  { name: "Master", min: 1950, max: 2099 },
-  { name: "Grandmaster", min: 2100, max: 2249 },
-  { name: "Challenger", min: 2250, max: Number.POSITIVE_INFINITY },
+  { name: "Iron", min: 0, max: 699 },
+  { name: "Bronze", min: 700, max: 899 },
+  { name: "Silver", min: 900, max: 1099 },
+  { name: "Gold", min: 1100, max: 1249 },
+  { name: "Platinum", min: 1250, max: 1399 },
+  { name: "Emerald", min: 1400, max: 1499 },
+  { name: "Diamond", min: 1500, max: 1574 },
+  { name: "Master", min: 1575, max: 1624 },
+  { name: "Grandmaster", min: 1625, max: 1674 },
+  { name: "Challenger", min: 1675, max: Number.POSITIVE_INFINITY },
 ] as const;
 
 function calculateRankMeta(benchmarkScore: number, witnessLevel: string) {
@@ -192,7 +253,8 @@ function calculateRankMeta(benchmarkScore: number, witnessLevel: string) {
     W4: 75,
     W5: 100,
   };
-  const eloRating = 600 + benchmarkScore + (trustBonus[witnessLevel] ?? 0);
+  const normalizedOvr = benchmarkScore > 100 ? Math.round(benchmarkScore / 10) : benchmarkScore;
+  const eloRating = 600 + normalizedOvr * 10 + (trustBonus[witnessLevel] ?? 0);
   const band = tierBands.find((item) => eloRating >= item.min && eloRating <= item.max) ?? tierBands[0];
   const divisionless = ["Master", "Grandmaster", "Challenger"].includes(band.name);
   let tierDivision: string | null = null;
@@ -207,19 +269,29 @@ function calculateRankMeta(benchmarkScore: number, witnessLevel: string) {
 }
 
 function asPassport(row: typeof passports.$inferSelect): PassportRecord {
-  const rankMeta = calculateRankMeta(row.benchmarkScore, row.witnessLevel);
+  const benchmarkScore = row.benchmarkScore > 100 ? Math.round(row.benchmarkScore / 10) : row.benchmarkScore;
+  const rankMeta = calculateRankMeta(benchmarkScore, row.witnessLevel);
+  const primaryDomain = parseLocalizedText(row.primaryDomain);
+  const subfields = parseLocalizedList(row.subfieldsJson);
+  const summary = parseLocalizedText(row.summary);
   return {
     id: row.id,
     nickname: row.nickname,
     country: row.country,
     timezone: row.timezone,
     contactOptIn: row.contactOptIn,
-    primaryDomain: row.primaryDomain,
-    subfields: JSON.parse(row.subfieldsJson) as string[],
-    summary: row.summary,
+    primaryDomain: primaryDomain.en,
+    primaryDomainKo: primaryDomain.ko,
+    primaryDomainEn: primaryDomain.en,
+    subfields: subfields.en,
+    subfieldsKo: subfields.ko,
+    subfieldsEn: subfields.en,
+    summary: summary.en,
+    summaryKo: summary.ko,
+    summaryEn: summary.en,
     scores: JSON.parse(row.scoresJson) as Scores,
     witnessLevel: row.witnessLevel,
-    benchmarkScore: row.benchmarkScore,
+    benchmarkScore,
     ...rankMeta,
     confidence: row.confidence,
     evidenceCount: row.evidenceCount,
@@ -238,37 +310,43 @@ async function hashEvidence(values: string[]) {
     .join("")}`;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const messages = messagesFor(request);
   try {
     await ensureDbSchema();
     const stored = await getDb()
       .select()
       .from(passports)
-      .orderBy(desc(passports.benchmarkScore), desc(passports.createdAt))
+      .orderBy(desc(passports.createdAt))
       .limit(50);
 
     const merged = [...stored.map(asPassport), ...seededPassports]
+      .map((passport) => ({
+        ...passport,
+        ...calculateRankMeta(passport.benchmarkScore, passport.witnessLevel),
+      }))
       .filter(
         (passport, index, all) =>
           all.findIndex((candidate) => candidate.nickname === passport.nickname) === index,
       )
-      .sort((a, b) => b.benchmarkScore - a.benchmarkScore);
+      .sort((a, b) => b.eloRating - a.eloRating || b.benchmarkScore - a.benchmarkScore);
 
     return Response.json({ passports: merged, protocolVersion: PROTOCOL_VERSION });
   } catch (error) {
     return Response.json(
-      { error: error instanceof Error ? error.message : "Passport를 불러오지 못했습니다." },
+      { error: error instanceof Error ? error.message : messages.loadError },
       { status: 500 },
     );
   }
 }
 
 export async function POST(request: Request) {
+  const messages = messagesFor(request);
   try {
     const payload = (await request.json()) as Record<string, unknown>;
     if (payload.protocolVersion !== PROTOCOL_VERSION) {
       return Response.json(
-        { error: `protocolVersion은 ${PROTOCOL_VERSION}이어야 합니다.` },
+        { error: messages.protocol },
         { status: 400 },
       );
     }
@@ -282,19 +360,25 @@ export async function POST(request: Request) {
         ? (payload.codexWitness as Record<string, unknown>)
         : {};
     const nickname = cleanText(candidate.nickname, 24).toLowerCase();
-    const primaryDomain = cleanText(payload.primaryDomain, 60);
-    const summary = cleanText(witness.summary, 420);
+    const primaryDomainBase = cleanText(payload.primaryDomain, 60);
+    const primaryDomainKo = cleanText(payload.primaryDomainKo, 60) || primaryDomainBase;
+    const primaryDomainEn = cleanText(payload.primaryDomainEn, 60) || primaryDomainBase;
+    const primaryDomain = primaryDomainEn || primaryDomainKo;
+    const summaryBase = cleanText(witness.summary, 420);
+    const summaryKo = cleanText(witness.summaryKo, 420) || summaryBase;
+    const summaryEn = cleanText(witness.summaryEn, 420) || summaryBase;
+    const summary = summaryEn || summaryKo;
     const scores = parseScores(payload.scores);
 
     if (!/^[a-z0-9_]{3,24}$/.test(nickname)) {
       return Response.json(
-        { error: "nickname은 3–24자의 영문 소문자, 숫자, 밑줄만 사용할 수 있습니다." },
+        { error: messages.nickname },
         { status: 400 },
       );
     }
     if (primaryDomain.length < 2 || summary.length < 30 || !scores) {
       return Response.json(
-        { error: "분야, 30자 이상의 Codex 요약, 0–100 범위의 8개 점수를 확인하세요." },
+        { error: messages.fields },
         { status: 400 },
       );
     }
@@ -302,6 +386,12 @@ export async function POST(request: Request) {
     const subfields = Array.isArray(payload.subfields)
       ? payload.subfields.map((item) => cleanText(item, 40)).filter(Boolean).slice(0, 4)
       : [];
+    const subfieldsKo = Array.isArray(payload.subfieldsKo)
+      ? payload.subfieldsKo.map((item) => cleanText(item, 40)).filter(Boolean).slice(0, 4)
+      : subfields;
+    const subfieldsEn = Array.isArray(payload.subfieldsEn)
+      ? payload.subfieldsEn.map((item) => cleanText(item, 40)).filter(Boolean).slice(0, 4)
+      : subfields;
     const evidenceHashes = Array.isArray(payload.evidenceHashes)
       ? payload.evidenceHashes
           .map((item) => {
@@ -318,9 +408,16 @@ export async function POST(request: Request) {
     const filesIndexed = Number.isInteger(scope.filesIndexed)
       ? Math.max(0, Math.min(scope.filesIndexed as number, 100000))
       : 0;
+    const codexSessionsIndexed = Number.isInteger(scope.codexSessionsIndexed)
+      ? Math.max(0, Math.min(scope.codexSessionsIndexed as number, 100000))
+      : 0;
+    const evidenceCount = Math.max(codexSessionsIndexed, filesIndexed, evidenceHashes.length);
     const confidence = Math.min(
       0.95,
-      0.55 + Math.min(0.25, evidenceHashes.length * 0.08) + Math.min(0.15, filesIndexed / 1000),
+      0.55 +
+        Math.min(0.2, evidenceHashes.length * 0.02) +
+        Math.min(0.2, codexSessionsIndexed / 500) +
+        Math.min(0.05, filesIndexed / 2000),
     );
     const evidenceRoot = await hashEvidence(evidenceHashes);
     const witnessLevel = evidenceHashes.length ? "W2" : "W1";
@@ -361,14 +458,14 @@ export async function POST(request: Request) {
         cleanText(candidate.country, 4).toUpperCase(),
         cleanText(candidate.timezone, 50),
         candidate.contactOptIn === true ? 1 : 0,
-        primaryDomain,
-        JSON.stringify(subfields),
-        summary,
+        JSON.stringify({ ko: primaryDomainKo || primaryDomainEn, en: primaryDomainEn || primaryDomainKo }),
+        JSON.stringify({ ko: subfieldsKo.length ? subfieldsKo : subfieldsEn, en: subfieldsEn.length ? subfieldsEn : subfieldsKo }),
+        JSON.stringify({ ko: summaryKo || summaryEn, en: summaryEn || summaryKo }),
         JSON.stringify(scores),
         witnessLevel,
         benchmarkScore,
         confidence,
-        evidenceHashes.length,
+        evidenceCount,
         evidenceRoot,
         PROTOCOL_VERSION,
         now,
@@ -382,14 +479,20 @@ export async function POST(request: Request) {
       timezone: cleanText(candidate.timezone, 50),
       contactOptIn: candidate.contactOptIn === true,
       primaryDomain,
-      subfields,
+      primaryDomainKo: primaryDomainKo || primaryDomainEn,
+      primaryDomainEn: primaryDomainEn || primaryDomainKo,
+      subfields: subfieldsEn.length ? subfieldsEn : subfieldsKo,
+      subfieldsKo: subfieldsKo.length ? subfieldsKo : subfieldsEn,
+      subfieldsEn: subfieldsEn.length ? subfieldsEn : subfieldsKo,
       summary,
+      summaryKo: summaryKo || summaryEn,
+      summaryEn: summaryEn || summaryKo,
       scores,
       witnessLevel,
       benchmarkScore,
       ...rankMeta,
       confidence,
-      evidenceCount: evidenceHashes.length,
+      evidenceCount,
       evidenceRoot,
       protocolVersion: PROTOCOL_VERSION,
       createdAt: now,
@@ -398,7 +501,7 @@ export async function POST(request: Request) {
     return Response.json({ passport }, { status: 201 });
   } catch (error) {
     return Response.json(
-      { error: error instanceof Error ? error.message : "Passport를 등록하지 못했습니다." },
+      { error: error instanceof Error ? error.message : messages.submitError },
       { status: 500 },
     );
   }

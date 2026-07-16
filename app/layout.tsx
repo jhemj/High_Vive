@@ -8,6 +8,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const origin = `${protocol}://${host}`;
   const imageUrl = new URL("/og.png", origin).toString();
+  const country = (requestHeaders.get("cf-ipcountry") ?? requestHeaders.get("x-country") ?? "").toUpperCase();
+  const acceptLanguage = requestHeaders.get("accept-language") ?? "";
+  const locale = country ? (country === "KR" ? "ko" : "en") : /^ko(?:-|,|;|$)/i.test(acceptLanguage) ? "ko" : "en";
+  const description = locale === "ko"
+    ? "바이브코더의 AI 협업 역량을 비교하는 벤치마크, ELO, 티어 리더보드."
+    : "A benchmark, ELO, and tier leaderboard for comparing vibe coders' AI collaboration skills.";
 
   return {
     metadataBase: new URL(origin),
@@ -15,32 +21,35 @@ export async function generateMetadata(): Promise<Metadata> {
       default: "High-Vive — Vibe Coder Benchmark League",
       template: "%s · High-Vive",
     },
-    description:
-      "바이브코더의 AI 협업 역량을 비교하는 벤치마크, ELO, 티어 리더보드.",
+    description,
     applicationName: "High-Vive",
     keywords: ["vibe coder", "Codex", "AI benchmark", "leaderboard", "ELO"],
     openGraph: {
       type: "website",
       title: "High-Vive — Vibe Coder Benchmark League",
-      description: "Benchmark OVR, provisional ELO, and competitive tiers for vibe coders.",
+      description,
       images: [{ url: imageUrl, width: 1730, height: 909, alt: "High-Vive TOP 3 benchmark league cards" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "High-Vive — Vibe Coder Benchmark League",
-      description: "OVR · ELO · TIER — the competitive benchmark league for vibe coders.",
+      description,
       images: [imageUrl],
     },
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const requestHeaders = await headers();
+  const country = (requestHeaders.get("cf-ipcountry") ?? requestHeaders.get("x-country") ?? "").toUpperCase();
+  const acceptLanguage = requestHeaders.get("accept-language") ?? "";
+  const locale = country ? (country === "KR" ? "ko" : "en") : /^ko(?:-|,|;|$)/i.test(acceptLanguage) ? "ko" : "en";
   return (
-    <html lang="ko">
+    <html lang={locale}>
       <body>{children}</body>
     </html>
   );

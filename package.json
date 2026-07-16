@@ -11,6 +11,8 @@
     "build": "vinext build",
     "start": "vinext start",
     "test": "vinext build && node --test tests/rendered-html.test.mjs",
+    "test:history": "node --test tests/history-scan.test.mjs",
+    "passport:scan": "node tools/high-vive-history-scan.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },

@@ -1,12 +1,10 @@
-import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { HighViveApp } from "./high-vive-app";
 
-export const metadata: Metadata = {
-  title: "High-Vive — 바이브코더 벤치마크 리그",
-  description:
-    "Codex 활용 역량을 8개 지표, Benchmark OVR, ELO, 경쟁 티어로 비교하는 바이브코더 리그입니다.",
-};
-
-export default function Home() {
-  return <HighViveApp />;
+export default async function Home() {
+  const requestHeaders = await headers();
+  const country = (requestHeaders.get("cf-ipcountry") ?? requestHeaders.get("x-country") ?? "").toUpperCase();
+  const acceptLanguage = requestHeaders.get("accept-language") ?? "";
+  const initialLocale = country ? (country === "KR" ? "ko" : "en") : /^ko(?:-|,|;|$)/i.test(acceptLanguage) ? "ko" : "en";
+  return <HighViveApp initialLocale={initialLocale} />;
 }
