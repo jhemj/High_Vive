@@ -1,11 +1,13 @@
 import { getD1 } from "../../../../../../db";
 import { passportSelectSql, serializePassportRow } from "../../../../../../packages/shared/passports";
 import { ApiError, errorResponse, jsonResponse, normalizeHandle } from "../../../../../../packages/shared/server";
+import { refreshLeagueRatings } from "../../../../../../packages/shared/ratings";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, context: { params: Promise<{ handle: string }> }) {
   try {
+    await refreshLeagueRatings();
     const handle = normalizeHandle((await context.params).handle);
     const profile = await getD1().prepare("SELECT id FROM profiles WHERE handle = ? AND is_public = 1 LIMIT 1").bind(handle).first<{ id: string }>();
     if (!profile) throw new ApiError(404, "PROFILE_NOT_FOUND", "Profile not found.");

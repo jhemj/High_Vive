@@ -34,9 +34,44 @@ test("submit route recalculates all public rating fields", async () => {
 
 test("leaderboard ranks in D1, not after a 50-row memory slice", async () => {
   const source = await readFile(new URL("../packages/shared/leaderboards.ts", import.meta.url), "utf8");
-  assert.match(source, /ORDER BY pv\.hv_rating DESC, pv\.reliability_score DESC/);
+  assert.match(source, /ORDER BY pv\.hv_rating DESC, effectiveReliability DESC/);
   assert.match(source, /LIMIT \? OFFSET \?/);
   assert.match(source, /pv\.evidence_level IN \('E2','E3','E4','E5'\)/);
+  assert.match(source, /p\.current_passport_id = pv\.id/);
+  assert.match(source, /effectiveReliability/);
+  assert.match(source, /AVG\(pv\.hv_rating\)/);
+  assert.match(source, /GROUP BY p\.country/);
+});
+
+test("weekly reassessment limit is consumed only by a published Passport", async () => {
+  const [createRoute, submitRoute, ratings] = await Promise.all([
+    readFile(new URL("../app/api/v1/assessments/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/v1/assessments/[id]/submit/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../packages/shared/ratings.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(createRoute, /published_at IS NOT NULL/);
+  assert.match(createRoute, /7 \* 86400000/);
+  assert.match(createRoute, /ASSESSMENT_WEEKLY_LIMIT/);
+  assert.doesNotMatch(createRoute, /created_at AS publishedAt FROM assessment_sessions/);
+  assert.match(submitRoute, /refreshLeagueRatings/);
+  assert.match(ratings, /cohortPositions/);
+  assert.match(ratings, /calculateEffectiveReliability/);
+  assert.match(ratings, /calculateHvRating/);
+});
+
+test("country defaults come from the connection and remain user-editable", async () => {
+  const [server, meRoute, profileRoute, ui] = await Promise.all([
+    readFile(new URL("../packages/shared/server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/v1/me/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/v1/me/profile/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/high-vive-app.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(server, /countryFromRequest/);
+  assert.match(meRoute, /suggestedCountry/);
+  assert.match(profileRoute, /isSupportedCountry/);
+  assert.match(ui, /settingsOpen/);
+  assert.match(ui, /saveSettings/);
+  assert.doesNotMatch(ui, /onSubmit=\{saveProfile\}[\s\S]{0,600}COUNTRY_CODES/);
 });
 
 test("browser onboarding polls the owned latest assessment without exposing a command", async () => {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  METRICS, TIER_BANDS, calculateCalibratedOvr, calculateReliability, calculateTier,
+  METRICS, TIER_BANDS, calculateCalibratedOvr, calculateHvRating, calculateReliability, calculateTier,
 } from "../packages/protocol/runtime.mjs";
 
 test("increasing any raw metric never decreases calibrated OVR", () => {
@@ -31,4 +31,12 @@ test("each verified Reliability component is monotonic", () => {
     assert.ok(calculateReliability({ ...base, [key]: true }) >= baseline);
   }
   assert.ok(calculateReliability({ ...base, activeDays: 60, dateRangeDays: 180 }) >= baseline);
+});
+
+test("each HV Rating component is monotonic", () => {
+  for (let value = 0; value < 100; value += 1) {
+    assert.ok(calculateHvRating(value + 1, 50, 50) >= calculateHvRating(value, 50, 50));
+    assert.ok(calculateHvRating(50, value + 1, 50) >= calculateHvRating(50, value, 50));
+    assert.ok(calculateHvRating(50, 50, value + 1) >= calculateHvRating(50, 50, value));
+  }
 });

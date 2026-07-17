@@ -9,6 +9,7 @@ import {
   enforceRateLimit, errorResponse, findSensitivePattern, jsonResponse, nowIso, randomId,
   readJson, requireAssessmentAccess, sha256, verifyMerkleProof,
 } from "../../../../../../packages/shared/server";
+import { refreshLeagueRatings } from "../../../../../../packages/shared/ratings";
 
 export const dynamic = "force-dynamic";
 
@@ -133,8 +134,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const reliabilityScore = calculateReliability(verified);
     const evidenceLevel = evidenceLevelFor(verified);
     const { calibratedScores, ovr } = calculateCalibratedOvr(rawScores);
-    const hvRating = calculateHvRating(ovr);
-    const { tier, tierDivision } = calculateTier(hvRating);
+    const initialHvRating = calculateHvRating(ovr, reliabilityScore, 50);
+    const initialTier = calculateTier(initialHvRating);
     const payloadForHash = { ...payload, nonce: "[BOUND]" };
     const payloadHash = `sha256:${await sha256(canonicalJson(payloadForHash))}`;
     const d1 = getD1();
@@ -157,7 +158,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       ).bind(
         passportId, access.assessment.profileId, id, current.currentPassportId, category, JSON.stringify(subfields),
         JSON.stringify(summary), JSON.stringify(strengths), JSON.stringify(weaknesses), JSON.stringify(rawScores),
-        JSON.stringify(calibratedScores), ovr, hvRating, tier, tierDivision, reliabilityScore, evidenceLevel,
+        JSON.stringify(calibratedScores), ovr, initialHvRating, initialTier.tier, initialTier.tierDivision, reliabilityScore, evidenceLevel,
         JSON.stringify(evaluator), JSON.stringify(limitations), payloadHash, PROTOCOL_VERSION, now, now,
       ),
       d1.prepare(
@@ -190,6 +191,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (String(error).toLowerCase().includes("unique")) throw new ApiError(409, "SUBMISSION_REPLAY", "This assessment or manifest has already been submitted.");
       throw error;
     }
+    await refreshLeagueRatings();
+    const finalRating = await d1.prepare("SELECT hv_rating AS hvRating, tier, tier_division AS tierDivision FROM passport_versions WHERE id = ? LIMIT 1")
+      .bind(passportId).first<{ hvRating: number; tier: string; tierDivision: string | null }>();
+    const hvRating = Number(finalRating?.hvRating ?? initialHvRating);
+    const tier = String(finalRating?.tier ?? initialTier.tier);
+    const tierDivision = finalRating?.tierDivision ?? initialTier.tierDivision;
     await auditEvent(access.userId, "PASSPORT_PUBLISHED", "passport", passportId, { assessmentId: id, evidenceLevel, protocolVersion: PROTOCOL_VERSION, automatic: true });
     return jsonResponse({
       passport: { id: passportId, status: "PUBLISHED", ovr, hvRating, provisionalTier: tier, tierDivision, reliabilityScore, evidenceLevel, protocolVersion: PROTOCOL_VERSION },

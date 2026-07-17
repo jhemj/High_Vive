@@ -1,5 +1,6 @@
 import { getD1 } from "../../db";
 import { isValidHandle } from "../protocol/runtime.mjs";
+import { isSupportedCountry } from "./countries";
 
 export class ApiError extends Error {
   constructor(
@@ -130,6 +131,15 @@ async function platformSubject(request: Request) {
   const raw = request.headers.get("oai-authenticated-user-email");
   if (!raw) return null;
   return sha256(raw.trim().toLowerCase());
+}
+
+export function countryFromRequest(request: Request) {
+  const cloudflareRequest = request as Request & { cf?: { country?: string } };
+  const country = cleanText(
+    cloudflareRequest.cf?.country ?? request.headers.get("cf-ipcountry") ?? request.headers.get("x-country"),
+    2,
+  ).toUpperCase();
+  return isSupportedCountry(country) ? country : "";
 }
 
 function cookieValue(request: Request, name: string) {

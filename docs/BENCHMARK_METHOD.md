@@ -15,13 +15,23 @@ of 80 or higher.
 ## Scores
 
 `hv-calibration-v1` applies a bounded logistic calibration per metric. The
-weighted result is Calibrated OVR. `HV Rating = round(OVR × 10)`. This is a
-benchmark rating, not Elo and not an empirical percentile. All tiers in v1.0
-are explicitly Provisional.
+weighted result is Calibrated OVR. `hv-rating-v2` calculates the league rating
+as `10 × (0.70 × OVR + 0.15 × effective Reliability + 0.15 × cohort position)`.
+Cohort position is the tie-aware relative position by OVR among current,
+eligible official Passports. A one-person cohort receives a neutral 50. This is
+a cohort-relative benchmark rating, not a win/loss Elo. All tiers are explicitly
+Provisional until a separate Challenge Arena exists.
 
-Reliability is calculated only from server-observed verification events. It
-does not add to skill score. HV Rating determines rank; Reliability breaks
-ties and gates Official eligibility.
+Reliability is calculated only from server-observed verification events. The
+stored base score loses five points for every completed 90 days after
+publication, with a floor of 40. Effective Reliability contributes 15% to HV
+Rating and gates Official eligibility. OVR and Reliability remain visible as
+separate source values.
+
+Publishing a Passport starts a seven-day reassessment cooldown. Creating,
+cancelling, expiring, or failing an assessment does not consume the cooldown.
+Each successful reassessment appends a Passport version and replaces only the
+profile's current competitive version.
 
 ## Evidence
 

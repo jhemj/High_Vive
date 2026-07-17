@@ -217,10 +217,15 @@ a {
   white-space: nowrap;
 }
 
-.header-account a,
-.header-account button {
+.header-account-actions {
   grid-column: 2;
   grid-row: 1 / 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-account-actions button {
   padding: 0;
   border: 0;
   background: none;
@@ -377,6 +382,50 @@ a {
   font-size: 17px;
   font-weight: 900;
 }
+
+.leaderboard-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 24px 0 12px;
+}
+
+.leaderboard-mode-tabs button {
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  background: #0a1622;
+  color: #7f94a6;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.leaderboard-mode-tabs button:hover,
+.leaderboard-mode-tabs button.is-active {
+  border-color: var(--lime);
+  box-shadow: inset 0 -3px 0 var(--lime);
+  background: linear-gradient(180deg, rgba(53, 240, 195, 0.11), #0a1622);
+  color: var(--cream);
+}
+
+.country-board-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 20px 0 26px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  background: rgba(9, 21, 33, 0.82);
+}
+
+.country-board-intro strong { font-family: var(--font-display); font-size: 19px; }
+.country-board-intro p { margin: 5px 0 0; color: #7890a3; font-size: 10px; }
+.country-board-intro > span { color: var(--lime); font-family: var(--font-mono); font-size: 9px; white-space: nowrap; }
 
 .field-tabs {
   display: flex;
@@ -556,6 +605,24 @@ a {
   font-weight: 900;
 }
 
+.card-country {
+  margin-top: 5px;
+  color: #9fb1c0;
+  font-size: 8px;
+}
+
+.nation-card {
+  --tier-edge: #35f0c3;
+  --tier-rgb: 53, 240, 195;
+  --tier-deep: #153a3a;
+}
+
+.nation-flag {
+  border: 0;
+  background: transparent;
+  font-size: 54px;
+}
+
 .tool-badges {
   display: inline-flex;
   align-items: center;
@@ -688,6 +755,39 @@ a {
 .ranking-table button:hover {
   background: rgba(110, 169, 206, 0.07);
 }
+
+.country-table-head,
+.country-ranking-table button {
+  display: grid;
+  grid-template-columns: 48px minmax(190px, 1.2fr) 112px 92px 82px 82px;
+  align-items: center;
+  gap: 14px;
+}
+
+.country-table-head {
+  min-height: 38px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--line);
+  background: #111f2e;
+  color: #6e8294;
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.country-table-head span:nth-child(n + 3) { text-align: center; }
+.country-ranking-table { margin: 0; padding: 0; list-style: none; }
+.country-ranking-table li + li { border-top: 1px solid #1e3042; }
+.country-ranking-table li.is-selected { box-shadow: inset 3px 0 0 var(--lime); background: rgba(53, 240, 195, 0.08); }
+.country-ranking-table button { width: 100%; min-height: 64px; padding: 0 18px; border: 0; background: transparent; color: var(--cream); cursor: pointer; text-align: center; }
+.country-ranking-table button:hover { background: rgba(110, 169, 206, 0.07); }
+.country-ranking-table button > strong { color: #718598; font-family: var(--font-display); font-size: 20px; text-align: left; }
+.country-ranking-table button > em { color: var(--lime); font-family: var(--font-display); font-size: 24px; font-style: normal; font-weight: 900; }
+.country-name { display: flex; align-items: center; gap: 12px; text-align: left; }
+.country-name > b { font-size: 30px; }
+.country-name span { font-size: 12px; font-weight: 800; }
+.country-name small { display: block; margin-top: 2px; color: #6e8396; font-family: var(--font-mono); font-size: 7px; }
 
 .table-rank {
   color: #718598;
@@ -2005,6 +2105,23 @@ a {
   font-weight: 900;
 }
 
+.nation-scout-hero { display: flex; align-items: center; gap: 18px; margin: 26px 0 12px; }
+.nation-scout-hero > span { font-size: 68px; line-height: 1; }
+.nation-scout-hero small { color: var(--lime); font-family: var(--font-mono); font-size: 9px; }
+.nation-scout-hero h2 { margin: 4px 0 0; font-family: var(--font-display); font-size: 32px; }
+.nation-rating { display: grid; margin: 20px 0; padding: 20px; border: 1px solid rgba(53, 240, 195, 0.38); background: rgba(53, 240, 195, 0.08); text-align: center; }
+.nation-rating strong { color: var(--lime); font-family: var(--font-display); font-size: 58px; line-height: 1; }
+.nation-rating span { margin-top: 6px; color: #8ca2b2; font-family: var(--font-mono); font-size: 8px; }
+.nation-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; margin: 0; background: var(--line); }
+.nation-stats div { padding: 14px; background: #0a1520; }
+.nation-stats dt { color: #71879a; font-family: var(--font-mono); font-size: 7px; }
+.nation-stats dd { margin: 5px 0 0; font-family: var(--font-display); font-size: 22px; font-weight: 900; }
+.nation-players { margin-top: 24px; }
+.nation-players h3 { font-family: var(--font-display); font-size: 18px; }
+.nation-players a { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: center; min-height: 42px; border-top: 1px solid var(--line); color: var(--cream); font-size: 10px; text-decoration: none; }
+.nation-players a span { color: #6f8497; font-family: var(--font-mono); }
+.nation-players a strong { color: var(--lime); font-family: var(--font-display); font-size: 17px; }
+
 .onboarding-modal {
   max-width: 1040px;
   background: #0d1825;
@@ -2084,6 +2201,7 @@ a {
 }
 
 .onboarding-steps input,
+.settings-modal select,
 .connect-page input {
   min-height: 44px;
   padding: 0 12px;
@@ -2092,6 +2210,17 @@ a {
   color: var(--cream);
   font-family: var(--font-mono);
 }
+
+.settings-modal {
+  max-width: 620px;
+  background: #0d1825;
+  box-shadow: 14px 14px 0 rgba(53, 240, 195, 0.12);
+}
+
+.settings-modal form { display: grid; gap: 22px; padding: 28px; }
+.settings-modal label { display: grid; gap: 9px; color: #b8c7d2; font-size: 10px; font-weight: 800; }
+.settings-modal label small { color: #708799; font-size: 9px; font-weight: 400; line-height: 1.6; }
+.settings-modal select { width: 100%; }
 
 .cli-command {
   max-height: 120px;
@@ -2521,8 +2650,20 @@ a {
   }
 
   .ranking-table-head,
-  .ranking-table button {
+  .ranking-table button,
+  .country-table-head,
+  .country-ranking-table button {
     min-width: 880px;
+  }
+
+  .leaderboard-mode-tabs {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+    overflow-x: auto;
+  }
+
+  .country-board-intro {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .scout-panel {

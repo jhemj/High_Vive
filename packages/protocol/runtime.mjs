@@ -3,6 +3,7 @@ export const SCANNER_VERSION = "high-vive-cli-v1.1";
 export const CANONICALIZATION_VERSION = "hv-canonical-json-v1";
 export const REDACTION_VERSION = "hv-redaction-v1";
 export const CALIBRATION_VERSION = "hv-calibration-v1";
+export const RATING_VERSION = "hv-rating-v2";
 export const CHALLENGE_VERSION = "hv-challenge-v1";
 
 export const METRICS = Object.freeze([
@@ -31,6 +32,7 @@ export const CATEGORIES = Object.freeze([
   { key: "devops", ko: "DevOps·클라우드", en: "DevOps, Cloud & Infra" },
   { key: "security", ko: "보안", en: "Security" },
   { key: "product", ko: "제품·디자인·콘텐츠", en: "Product, Design & Content" },
+  { key: "other", ko: "기타", en: "Other" },
 ]);
 
 export const EVIDENCE_LEVELS = Object.freeze([
@@ -89,8 +91,20 @@ export function calculateCalibratedOvr(rawScores) {
   return { calibratedScores, ovr };
 }
 
-export function calculateHvRating(ovr) {
-  return Math.max(0, Math.min(1000, Math.round(Number(ovr) * 10)));
+export function calculateHvRating(ovr, reliability, relativePosition = 50) {
+  const skill = Math.max(0, Math.min(100, Number(ovr) || 0));
+  const trust = Math.max(0, Math.min(100, Number(reliability) || 0));
+  const relative = Math.max(0, Math.min(100, Number(relativePosition) || 0));
+  return Math.max(0, Math.min(1000, Math.round((skill * 0.70 + trust * 0.15 + relative * 0.15) * 10)));
+}
+
+export function calculateEffectiveReliability(reliability, publishedAt, now = Date.now()) {
+  const base = Math.max(0, Math.min(100, Number(reliability) || 0));
+  const timestamp = Date.parse(String(publishedAt || ""));
+  if (!Number.isFinite(timestamp)) return base;
+  const ageDays = Math.max(0, (Number(now) - timestamp) / 86400000);
+  const decay = Math.floor(ageDays / 90) * 5;
+  return round1(Math.max(40, base - decay));
 }
 
 export function calculateTier(hvRating) {
@@ -179,6 +193,7 @@ export function protocolDescriptor() {
     canonicalizationVersion: CANONICALIZATION_VERSION,
     redactionVersion: REDACTION_VERSION,
     calibrationVersion: CALIBRATION_VERSION,
+    ratingVersion: RATING_VERSION,
     challengeVersion: CHALLENGE_VERSION,
     metrics: METRICS,
     categories: CATEGORIES,

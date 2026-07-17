@@ -1,9 +1,10 @@
 import { getD1 } from "../../../../../db";
 import {
-  ApiError, auditEvent, cleanList, cleanText, enforceRateLimit, errorResponse,
+  ApiError, auditEvent, cleanList, cleanText, countryFromRequest, enforceRateLimit, errorResponse,
   findProfileByUser, jsonResponse, normalizeHandle, nowIso, randomId, readJson,
   requireBrowserUser,
 } from "../../../../../packages/shared/server";
+import { isSupportedCountry } from "../../../../../packages/shared/countries";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,13 @@ export async function PATCH(request: Request) {
     const handle = payload.handle === undefined && current ? String(current.handle) : normalizeHandle(payload.handle);
     const displayName = cleanText(payload.displayName, 40, 1) || handle;
     const bio = cleanText(payload.bio, 300);
-    const country = cleanText(payload.country, 4).toUpperCase();
+    const requestedCountry = payload.country === undefined
+      ? (current ? String(current.country ?? "") : countryFromRequest(request))
+      : cleanText(payload.country, 2).toUpperCase();
+    if (requestedCountry && !isSupportedCountry(requestedCountry)) {
+      throw new ApiError(400, "INVALID_COUNTRY", "Choose a supported country or region.");
+    }
+    const country = requestedCountry;
     const timezone = cleanText(payload.timezone, 60);
     const languages = cleanList(payload.languages, 8, 24);
     const links = cleanList(payload.links, 5, 200).filter((link) => /^https:\/\//i.test(link));

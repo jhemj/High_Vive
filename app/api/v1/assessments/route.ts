@@ -1,6 +1,6 @@
 import { getD1 } from "../../../../db";
 import {
-  CALIBRATION_VERSION, CANONICALIZATION_VERSION, PROTOCOL_VERSION, REDACTION_VERSION,
+  CALIBRATION_VERSION, CANONICALIZATION_VERSION, PROTOCOL_VERSION, RATING_VERSION, REDACTION_VERSION,
   SCANNER_VERSION,
 } from "../../../../packages/protocol/runtime.mjs";
 import {
@@ -27,6 +27,16 @@ export async function POST(request: Request) {
       if (cached) return jsonResponse(JSON.parse(cached.responseJson), cached.responseStatus);
     }
 
+    const latestPublished = await d1.prepare(
+      "SELECT published_at AS publishedAt FROM passport_versions WHERE profile_id = ? AND published_at IS NOT NULL ORDER BY published_at DESC LIMIT 1",
+    ).bind(profile.id).first<{ publishedAt: string }>();
+    if (latestPublished?.publishedAt) {
+      const retryAt = new Date(Date.parse(latestPublished.publishedAt) + 7 * 86400000);
+      if (retryAt.getTime() > Date.now()) {
+        throw new ApiError(429, "ASSESSMENT_WEEKLY_LIMIT", "A new Passport can be published once every seven days.", { retryAt: retryAt.toISOString() });
+      }
+    }
+
     const assessmentId = randomId("asm");
     const uploadToken = randomToken("hv_upload", 32);
     const now = nowIso();
@@ -49,6 +59,7 @@ export async function POST(request: Request) {
       protocolVersion: PROTOCOL_VERSION,
       scannerVersion: SCANNER_VERSION,
       calibrationVersion: CALIBRATION_VERSION,
+      ratingVersion: RATING_VERSION,
       expiresAt,
     };
     if (idempotencyKey) {

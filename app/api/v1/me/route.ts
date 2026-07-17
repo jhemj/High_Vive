@@ -1,6 +1,6 @@
 import { getD1 } from "../../../../db";
 import {
-  ApiError, auditEvent, errorResponse, findProfileByUser, jsonResponse, nowIso,
+  ApiError, auditEvent, countryFromRequest, errorResponse, findProfileByUser, jsonResponse, nowIso,
   requireBrowserUser,
 } from "../../../../packages/shared/server";
 
@@ -9,8 +9,15 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const user = await requireBrowserUser(request);
-    const profile = await findProfileByUser(user.userId);
+    let profile = await findProfileByUser(user.userId);
     const d1 = getD1();
+    const suggestedCountry = countryFromRequest(request);
+    if (profile && !profile.country && suggestedCountry) {
+      await d1.prepare("UPDATE profiles SET country = ?, updated_at = ? WHERE id = ? AND (country IS NULL OR country = '')")
+        .bind(suggestedCountry, nowIso(), profile.id).run();
+      profile = { ...profile, country: suggestedCountry };
+      await auditEvent(user.userId, "PROFILE_COUNTRY_SUGGESTED", "profile", String(profile.id), { country: suggestedCountry });
+    }
     const assessment = await d1.prepare(
       `SELECT id, status, protocol_version AS protocolVersion, scanner_version AS scannerVersion,
        expires_at AS expiresAt, created_at AS createdAt, updated_at AS updatedAt
@@ -32,6 +39,7 @@ export async function GET(request: Request) {
     return jsonResponse({
       user: { id: user.userId, locale: user.locale, provider: user.provider ?? "token", displayName: profile?.displayName ?? "High-Vive player" },
       profile,
+      suggestedCountry,
       latestAssessment: assessment ? { assessment, commitment, passport } : null,
     });
   } catch (error) {

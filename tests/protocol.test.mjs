@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   METRICS, PROTOCOL_VERSION, calculateCalibratedOvr,
-  calculateHvRating, calculateReliability, calculateTier, canTransition, evidenceLevelFor,
+  calculateEffectiveReliability, calculateHvRating, calculateReliability, calculateTier, canTransition, evidenceLevelFor,
   isOfficialPassport, isValidHandle, validateMetricReports,
 } from "../packages/protocol/runtime.mjs";
 
@@ -12,11 +12,18 @@ test("metric weights total 100 percent", () => {
   assert.equal(Math.round(METRICS.reduce((sum, metric) => sum + metric.weight, 0) * 100), 100);
 });
 
-test("server scoring uses OVR only for HV Rating", () => {
+test("HV Rating combines OVR, current Reliability, and cohort position", () => {
   const { ovr, calibratedScores } = calculateCalibratedOvr(scores);
-  assert.equal(calculateHvRating(ovr), Math.round(ovr * 10));
+  assert.equal(calculateHvRating(80, 90, 50), 770);
   assert.equal(Object.keys(calibratedScores).length, 10);
-  assert.equal(calculateHvRating(ovr), calculateHvRating(ovr));
+  assert.ok(calculateHvRating(ovr, 90, 80) > calculateHvRating(ovr, 70, 20));
+});
+
+test("Reliability decays every 90 days after publication", () => {
+  const publishedAt = "2026-01-01T00:00:00.000Z";
+  assert.equal(calculateEffectiveReliability(85, publishedAt, Date.parse("2026-01-01T00:00:00.000Z")), 85);
+  assert.equal(calculateEffectiveReliability(85, publishedAt, Date.parse("2026-04-01T00:00:00.000Z")), 80);
+  assert.equal(calculateEffectiveReliability(45, publishedAt, Date.parse("2030-01-01T00:00:00.000Z")), 40);
 });
 
 test("tier boundaries are provisional band results", () => {
