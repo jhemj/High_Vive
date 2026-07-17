@@ -62,7 +62,23 @@ async function authenticate(challengeId: string, options: CredentialOptions) {
 export function PasskeyAuth({ locale, returnTo = "/?passport=1", onAuthenticated }: { locale: Locale; returnTo?: string; onAuthenticated: () => void }) {
   const [busy, setBusy] = useState<"register" | "login" | "">("");
   const [message, setMessage] = useState("");
+  const [copied, setCopied] = useState(false);
   const ko = locale === "ko";
+
+  function passkeyError(error: unknown, action: "register" | "login") {
+    const name = error && typeof error === "object" && "name" in error ? String(error.name) : "";
+    if (name === "NotAllowedError") {
+      if (action === "login" && !window.localStorage.getItem("high-vive-passkey-id")) {
+        return ko
+          ? "이 기기에서 기존 High-Vive Passkey를 찾지 못했습니다. 처음 등록하는 경우 ‘새 Passkey로 시작’을 누르세요."
+          : "No existing High-Vive Passkey was found on this device. If this is your first visit, choose ‘Start with a new Passkey’.";
+      }
+      return ko
+        ? "Windows Hello 요청이 취소·시간초과됐거나 현재 인앱 브라우저가 암호 관리자 접근을 허용하지 않았습니다. 아래 주소를 복사해 Edge 또는 Chrome에서 다시 여세요."
+        : "Windows Hello was cancelled or timed out, or this in-app browser could not access the passkey manager. Copy the address below and reopen it in Edge or Chrome.";
+    }
+    return error instanceof Error ? error.message : String(error);
+  }
 
   async function register() {
     setBusy("register");
@@ -99,7 +115,7 @@ export function PasskeyAuth({ locale, returnTo = "/?passport=1", onAuthenticated
       window.localStorage.setItem("high-vive-passkey-id", encode(credential.rawId));
       onAuthenticated();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
+      setMessage(passkeyError(error, "register"));
     } finally {
       setBusy("");
     }
@@ -115,22 +131,29 @@ export function PasskeyAuth({ locale, returnTo = "/?passport=1", onAuthenticated
       await authenticate(started.challengeId, started.publicKey);
       onAuthenticated();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
+      setMessage(passkeyError(error, "login"));
     } finally {
       setBusy("");
     }
+  }
+
+  async function copyBrowserLink() {
+    await navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
   }
 
   const signInPath = `/signin-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`;
   return <div className="auth-panel">
     <div><p className="eyebrow">HIGH-VIVE ACCOUNT</p><h3>{ko ? "평가 도구와 무관하게 로그인" : "Sign in independently of your AI tool"}</h3><p>{ko ? "Claude Code 사용자는 ChatGPT 계정이 필요 없습니다. Passkey로 바로 시작할 수 있습니다." : "Claude Code users do not need a ChatGPT account. Start directly with a Passkey."}</p></div>
     <div className="auth-actions">
-      <button className="button button-primary" type="button" disabled={Boolean(busy)} onClick={login}>{busy === "login" ? "…" : ko ? "Passkey로 로그인" : "Sign in with Passkey"}</button>
-      <button className="button button-outline" type="button" disabled={Boolean(busy)} onClick={register}>{busy === "register" ? "…" : ko ? "새 Passkey 만들기" : "Create a new Passkey"}</button>
+      <button className="button button-primary" type="button" disabled={Boolean(busy)} onClick={register}>{busy === "register" ? "…" : ko ? "새 Passkey로 시작" : "Start with a new Passkey"}</button>
+      <button className="button button-outline" type="button" disabled={Boolean(busy)} onClick={login}>{busy === "login" ? "…" : ko ? "기존 Passkey로 로그인" : "Sign in with an existing Passkey"}</button>
       <span>{ko ? "또는" : "or"}</span>
       <a className="button button-quiet" href={signInPath}>{ko ? "ChatGPT 계정으로 계속" : "Continue with ChatGPT"}</a>
     </div>
-    <small>{ko ? "Passkey는 Windows Hello, Touch ID, 휴대전화 또는 비밀번호 관리자를 사용합니다." : "Passkeys use Windows Hello, Touch ID, your phone, or a password manager."}</small>
+    <small>{ko ? "처음이면 새 Passkey로 시작하세요. Passkey는 Windows Hello, Touch ID, 휴대전화 또는 비밀번호 관리자를 사용합니다." : "New here? Start with a new Passkey. Passkeys use Windows Hello, Touch ID, your phone, or a password manager."}</small>
+    <button className="auth-copy-link" type="button" onClick={copyBrowserLink}>{copied ? (ko ? "주소 복사됨" : "Address copied") : (ko ? "Edge·Chrome용 주소 복사" : "Copy address for Edge or Chrome")}</button>
     {message ? <p className="auth-error" role="alert">{message}</p> : null}
   </div>;
 }

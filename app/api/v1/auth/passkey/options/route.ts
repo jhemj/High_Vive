@@ -30,7 +30,7 @@ export async function POST(request: Request) {
           rp: { id: rpId, name: "High-Vive" },
           user: { id: userId, name: `player-${userId.slice(0, 8)}`, displayName: "High-Vive player" },
           pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
-          timeout: 120000,
+          timeout: 300000,
           attestation: "none",
           authenticatorSelection: { residentKey: "required", requireResidentKey: true, userVerification: "required" },
         },
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
        VALUES (?, 'AUTHENTICATE', ?, ?, ?, ?, ?)`,
     ).bind(challengeId, challenge, requestedCredential || null, JSON.stringify({ rpId, origin }), expiresIso(5), createdAt).run();
     return jsonResponse({ challengeId, publicKey: {
-      challenge, rpId, timeout: 120000, userVerification: "required",
+      challenge, rpId, timeout: 300000, userVerification: "required",
       ...(requestedCredential ? { allowCredentials: [{ type: "public-key", id: requestedCredential }] } : {}),
     } }, 201);
   } catch (error) {

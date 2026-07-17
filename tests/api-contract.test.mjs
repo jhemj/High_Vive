@@ -91,6 +91,9 @@ test("provider-neutral browser auth supports Passkeys and ChatGPT without coupli
   assert.match(passkeyVerify, /PASSKEY_CHALLENGE_REPLAY/);
   assert.match(server, /browser_sessions/);
   assert.match(mainUi, /Claude Code users do not need a ChatGPT account/);
+  assert.match(mainUi, /Start with a new Passkey/);
+  assert.match(mainUi, /NotAllowedError/);
+  assert.ok(mainUi.indexOf("Start with a new Passkey") < mainUi.indexOf("Sign in with an existing Passkey"));
   assert.match(mainUi, /Continue with ChatGPT/);
   assert.match(connectUi, /PasskeyAuth/);
 });

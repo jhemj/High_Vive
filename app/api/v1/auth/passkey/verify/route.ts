@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       return jsonResponse({ challengeId: row.id, publicKey: {
         challenge: authenticationChallenge,
         rpId: challengePayload.rpId,
-        timeout: 120000,
+        timeout: 300000,
         userVerification: "required",
         allowCredentials: [{ type: "public-key", id: credentialId }],
       } });
