@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       ).bind(assessment.id).first(),
     ]) : [null, null];
     return jsonResponse({
-      user: { id: user.userId, locale: user.locale },
+      user: { id: user.userId, locale: user.locale, provider: user.provider ?? "token", displayName: profile?.displayName ?? "High-Vive player" },
       profile,
       latestAssessment: assessment ? { assessment, commitment, passport } : null,
     });
@@ -50,6 +50,7 @@ export async function DELETE(request: Request) {
       d1.prepare("UPDATE users SET status = 'DELETED', deleted_at = ?, updated_at = ? WHERE id = ?").bind(now, now, user.userId),
       d1.prepare("UPDATE profiles SET is_public = 0, updated_at = ? WHERE user_id = ?").bind(now, user.userId),
       d1.prepare("UPDATE api_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL").bind(now, user.userId),
+      d1.prepare("UPDATE browser_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL").bind(now, user.userId),
       d1.prepare("UPDATE assessment_sessions SET status = 'CANCELLED', updated_at = ? WHERE user_id = ? AND status IN ('DRAFT','COMMITTED','CHALLENGED','ASSESSED')").bind(now, user.userId),
     ]);
     await auditEvent(user.userId, "ACCOUNT_DELETED", "user", user.userId);

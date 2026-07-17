@@ -79,3 +79,18 @@ test("local Cloudflare runtime config has one supported compatibility source", a
   assert.match(wranglerConfig, /"compatibility_flags": \["nodejs_compat"\]/);
   assert.match(wranglerConfig, /"compatibility_date": "2026-05-22"/);
 });
+
+test("provider-neutral browser auth supports Passkeys and ChatGPT without coupling Claude Code to ChatGPT", async () => {
+  const [passkeyVerify, server, mainUi, connectUi] = await Promise.all([
+    readFile(new URL("../app/api/v1/auth/passkey/verify/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../packages/shared/server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/passkey-auth.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/connect/connect-client.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(passkeyVerify, /verifyPasskeyAssertion/);
+  assert.match(passkeyVerify, /PASSKEY_CHALLENGE_REPLAY/);
+  assert.match(server, /browser_sessions/);
+  assert.match(mainUi, /Claude Code users do not need a ChatGPT account/);
+  assert.match(mainUi, /Continue with ChatGPT/);
+  assert.match(connectUi, /PasskeyAuth/);
+});

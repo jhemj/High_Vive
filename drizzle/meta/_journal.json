@@ -29,6 +29,13 @@
       "when": 1784270000000,
       "tag": "0003_auto_publish_submitted",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784332800000,
+      "tag": "0004_provider_neutral_auth",
+      "breakpoints": true
     }
   ]
 }

@@ -119,56 +119,94 @@ export function canonicalJson(value: unknown): string {
   return `{${Object.keys(object).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`).join(",")}}`;
 }
 
-type AuthenticatedUser = { userId: string; kind: "browser" | "api-token"; locale: "ko" | "en" };
+type AuthenticatedUser = { userId: string; kind: "browser" | "api-token"; locale: "ko" | "en"; provider?: "sites" | "passkey" };
 
 function requestLocale(request: Request): "ko" | "en" {
   const locale = request.headers.get("x-high-vive-locale") ?? request.headers.get("accept-language") ?? "";
   return locale.toLowerCase().startsWith("ko") ? "ko" : "en";
 }
 
-async function browserSubject(request: Request) {
+async function platformSubject(request: Request) {
   const raw = request.headers.get("oai-authenticated-user-email");
   if (!raw) return null;
   return sha256(raw.trim().toLowerCase());
 }
 
-export async function requireBrowserUser(request: Request): Promise<AuthenticatedUser> {
-  const subject = await browserSubject(request);
-  if (!subject) throw new ApiError(401, "AUTH_REQUIRED", "Sign in before continuing.");
+function cookieValue(request: Request, name: string) {
+  const cookie = request.headers.get("cookie") ?? "";
+  for (const item of cookie.split(";")) {
+    const [key, ...parts] = item.trim().split("=");
+    if (key === name) return decodeURIComponent(parts.join("="));
+  }
+  return "";
+}
+
+export function browserSessionToken(request: Request) {
+  const token = cookieValue(request, "hv_session");
+  return token.startsWith("hv_session_") ? token : "";
+}
+
+async function optionalBrowserUser(request: Request): Promise<AuthenticatedUser | null> {
+  const subject = await platformSubject(request);
+  if (subject) return ensurePlatformUser(subject, requestLocale(request));
+
+  const token = browserSessionToken(request);
+  if (!token) return null;
+  const tokenHash = await sha256(token);
+  const row = await getD1().prepare(
+    `SELECT bs.user_id AS userId FROM browser_sessions bs
+     JOIN users u ON u.id = bs.user_id AND u.status = 'ACTIVE'
+     WHERE bs.token_hash = ? AND bs.revoked_at IS NULL AND bs.expires_at > ? LIMIT 1`,
+  ).bind(tokenHash, nowIso()).first<{ userId: string }>();
+  if (!row?.userId) return null;
+  await getD1().prepare("UPDATE browser_sessions SET last_used_at = ? WHERE token_hash = ?").bind(nowIso(), tokenHash).run();
+  return { userId: row.userId, kind: "browser", locale: requestLocale(request), provider: "passkey" };
+}
+
+async function ensurePlatformUser(subject: string, locale: "ko" | "en"): Promise<AuthenticatedUser> {
   const d1 = getD1();
   const existing = await d1.prepare(
-    "SELECT user_id AS userId FROM auth_identities WHERE provider = ? AND provider_subject = ? LIMIT 1",
+    `SELECT ai.user_id AS userId FROM auth_identities ai
+     JOIN users u ON u.id = ai.user_id AND u.status = 'ACTIVE'
+     WHERE ai.provider = ? AND ai.provider_subject = ? LIMIT 1`,
   ).bind("sites", subject).first<{ userId: string }>();
-  if (existing?.userId) return { userId: existing.userId, kind: "browser", locale: requestLocale(request) };
+  if (existing?.userId) return { userId: existing.userId, kind: "browser", locale, provider: "sites" };
 
   const userId = randomId("usr");
   const identityId = randomId("aid");
   const now = nowIso();
   try {
     await d1.batch([
-      d1.prepare("INSERT INTO users (id, status, locale, created_at, updated_at) VALUES (?, 'ACTIVE', ?, ?, ?)").bind(userId, requestLocale(request), now, now),
+      d1.prepare("INSERT INTO users (id, status, locale, created_at, updated_at) VALUES (?, 'ACTIVE', ?, ?, ?)").bind(userId, locale, now, now),
       d1.prepare("INSERT INTO auth_identities (id, user_id, provider, provider_subject, created_at) VALUES (?, ?, 'sites', ?, ?)").bind(identityId, userId, subject, now),
     ]);
     await auditEvent(userId, "USER_CREATED", "user", userId, { provider: "sites" });
-    return { userId, kind: "browser", locale: requestLocale(request) };
+    return { userId, kind: "browser", locale, provider: "sites" };
   } catch {
     const raced = await d1.prepare(
       "SELECT user_id AS userId FROM auth_identities WHERE provider = 'sites' AND provider_subject = ? LIMIT 1",
     ).bind(subject).first<{ userId: string }>();
     if (!raced?.userId) throw new ApiError(500, "AUTH_CREATE_FAILED", "Could not create the account.");
-    return { userId: raced.userId, kind: "browser", locale: requestLocale(request) };
+    return { userId: raced.userId, kind: "browser", locale, provider: "sites" };
   }
 }
 
+export async function requireBrowserUser(request: Request): Promise<AuthenticatedUser> {
+  const user = await optionalBrowserUser(request);
+  if (!user) throw new ApiError(401, "AUTH_REQUIRED", "Sign in before continuing.");
+  return user;
+}
+
 export async function optionalAuthenticatedUser(request: Request): Promise<AuthenticatedUser | null> {
-  const subject = await browserSubject(request);
-  if (subject) return requireBrowserUser(request);
+  const browser = await optionalBrowserUser(request);
+  if (browser) return browser;
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer hv_api_")) return null;
   const tokenHash = await sha256(authorization.slice(7));
   const row = await getD1().prepare(
-    `SELECT user_id AS userId FROM api_tokens
-     WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ? LIMIT 1`,
+    `SELECT at.user_id AS userId FROM api_tokens at
+     JOIN users u ON u.id = at.user_id AND u.status = 'ACTIVE'
+     WHERE at.token_hash = ? AND at.revoked_at IS NULL AND at.expires_at > ? LIMIT 1`,
   ).bind(tokenHash, nowIso()).first<{ userId: string }>();
   if (!row?.userId) return null;
   await getD1().prepare("UPDATE api_tokens SET last_used_at = ? WHERE token_hash = ?").bind(nowIso(), tokenHash).run();
@@ -199,11 +237,10 @@ export async function requireAssessmentAccess(request: Request, assessmentId: st
   ).bind(assessmentId).first<Record<string, unknown>>();
   if (!assessment) throw new ApiError(404, "ASSESSMENT_NOT_FOUND", "Assessment not found.");
 
-  const browser = await browserSubject(request);
+  const browser = await optionalBrowserUser(request);
   if (browser) {
-    const user = await requireBrowserUser(request);
-    if (user.userId !== assessment.userId) throw new ApiError(403, "ASSESSMENT_FORBIDDEN", "This assessment belongs to another account.");
-    return { ...user, assessment };
+    if (browser.userId !== assessment.userId) throw new ApiError(403, "ASSESSMENT_FORBIDDEN", "This assessment belongs to another account.");
+    return { ...browser, assessment };
   }
 
   const authorization = request.headers.get("authorization") ?? "";

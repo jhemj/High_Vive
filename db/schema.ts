@@ -64,6 +64,37 @@ export const apiTokens = sqliteTable("api_tokens", {
   createdAt: text("created_at").notNull(),
 }, (table) => [index("api_tokens_user_idx").on(table.userId)]);
 
+export const passkeyCredentials = sqliteTable("passkey_credentials", {
+  credentialId: text("credential_id").primaryKey(),
+  userId: text("user_id").notNull(),
+  publicKeySpki: text("public_key_spki").notNull(),
+  algorithm: integer("algorithm").notNull(),
+  counter: integer("counter").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  lastUsedAt: text("last_used_at"),
+}, (table) => [index("passkey_credentials_user_idx").on(table.userId)]);
+
+export const passkeyChallenges = sqliteTable("passkey_challenges", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  challenge: text("challenge").notNull(),
+  credentialId: text("credential_id"),
+  payloadJson: text("payload_json").notNull().default("{}"),
+  expiresAt: text("expires_at").notNull(),
+  usedAt: text("used_at"),
+  createdAt: text("created_at").notNull(),
+}, (table) => [index("passkey_challenges_expiry_idx").on(table.expiresAt)]);
+
+export const browserSessions = sqliteTable("browser_sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: text("expires_at").notNull(),
+  lastUsedAt: text("last_used_at"),
+  revokedAt: text("revoked_at"),
+  createdAt: text("created_at").notNull(),
+}, (table) => [index("browser_sessions_user_idx").on(table.userId)]);
+
 export const profiles = sqliteTable("profiles", {
   id: text("id").primaryKey(),
   userId: text("user_id"),

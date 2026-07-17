@@ -42,7 +42,10 @@ macOS or Ubuntu:
 curl -fsSL https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.sh | bash
 ```
 
-The CLI opens one-time High-Vive login automatically. `high-vive assess` scans
+The CLI opens one-time High-Vive login automatically. A High-Vive account can
+use a platform Passkey (Windows Hello, Touch ID, phone, or password manager) or
+optional ChatGPT sign-in. Claude Code users do not need a ChatGPT account.
+`high-vive assess` scans
 `CODEX_HOME/sessions` and `archived_sessions` as a
 stream, commits a deterministic evidence root, receives a one-time server
 challenge, selects reproducible samples, runs the selected local AI Witness, shows a

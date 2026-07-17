@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { CATEGORIES, METRICS, PROTOCOL_VERSION } from "../packages/protocol/runtime.mjs";
+import { PasskeyAuth } from "./passkey-auth";
 
 type Locale = "ko" | "en";
 type Platform = "windows" | "macos" | "ubuntu";
@@ -107,7 +108,10 @@ const copy = {
     waiting: "CLI 평가를 기다리는 중",
     published: "공개 완료",
     close: "닫기",
-    signIn: "계속하려면 ChatGPT 계정으로 로그인해야 합니다.",
+    signIn: "로그인 세션이 만료되었습니다. 다시 로그인해 주세요.",
+    signInButton: "로그인",
+    signOut: "로그아웃",
+    signedIn: "로그인됨",
     privacy: "Codex·Claude Code 대화 원문, 로컬 파일, 절대 경로, tool arguments는 서버로 전송되지 않습니다.",
     noSelection: "표시할 Passport가 없습니다.",
   },
@@ -172,7 +176,10 @@ const copy = {
     waiting: "Waiting for the CLI assessment",
     published: "Published",
     close: "Close",
-    signIn: "Sign in with your ChatGPT account to continue.",
+    signIn: "Your sign-in session expired. Please sign in again.",
+    signInButton: "Sign in",
+    signOut: "Sign out",
+    signedIn: "Signed in",
     privacy: "Codex and Claude Code transcripts, local files, absolute paths, and tool arguments are not uploaded.",
     noSelection: "No Passport to display.",
   },
@@ -242,6 +249,8 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [viewer, setViewer] = useState<{ id: string; displayName: string; provider: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [handle, setHandle] = useState("ngmptdz");
   const [displayName, setDisplayName] = useState("ngmptdz");
   const [profileReady, setProfileReady] = useState(false);
@@ -260,9 +269,43 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
       if (stored === "ko" || stored === "en") setLocale(stored);
       setPlatform(detectPlatform());
       setServerOrigin(window.location.origin);
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("passport") === "1") {
+        setComposerOpen(true);
+        params.delete("passport");
+        const query = params.toString();
+        window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+      }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  const refreshViewer = useCallback(async () => {
+    try {
+      const response = await fetch("/api/v1/me", { headers: { "x-high-vive-locale": locale }, cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok) {
+        setViewer(null);
+        return;
+      }
+      setViewer(result.user);
+      if (result.profile) {
+        setHandle(result.profile.handle);
+        setDisplayName(result.profile.displayName);
+        setProfileReady(true);
+      }
+      setAssessmentState(result.latestAssessment || null);
+    } catch {
+      setViewer(null);
+    } finally {
+      setAuthChecked(true);
+    }
+  }, [locale]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void refreshViewer(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [refreshViewer]);
 
   useEffect(() => {
     let active = true;
@@ -281,13 +324,17 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   }, [locale, assessmentState?.passport?.status]);
 
   useEffect(() => {
-    if (!composerOpen) return;
+    const viewerId = viewer?.id;
+    if (!composerOpen || !viewerId) return;
     let active = true;
     const poll = async () => {
       try {
         const response = await fetch("/api/v1/me", { headers: { "x-high-vive-locale": locale }, cache: "no-store" });
         const result = await response.json();
-        if (!response.ok) throw new Error(result?.error?.message || t.signIn);
+        if (!response.ok) {
+          if (response.status === 401) setViewer(null);
+          throw new Error(result?.error?.message || t.signIn);
+        }
         if (!active) return;
         if (result.profile) {
           setHandle(result.profile.handle);
@@ -302,7 +349,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
     void poll();
     const timer = window.setInterval(poll, 4000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [composerOpen, locale, t.signIn]);
+  }, [composerOpen, locale, t.signIn, viewer?.id]);
 
   const visible = useMemo(
     () => category === "__all__" ? passports : passports.filter((passport) => passport.category === category),
@@ -326,6 +373,20 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   function switchLocale(next: Locale) {
     setLocale(next);
     window.localStorage.setItem("high-vive-locale", next);
+  }
+
+  function openComposer() {
+    setMessage("");
+    setComposerOpen(true);
+  }
+
+  async function signOut() {
+    await fetch("/api/v1/auth/logout", { method: "POST" });
+    if (viewer?.provider === "sites") {
+      window.location.assign("/signout-with-chatgpt?return_to=%2F");
+      return;
+    }
+    window.location.assign("/");
   }
 
   async function saveProfile(event: FormEvent) {
@@ -363,7 +424,8 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
             <button className={locale === "ko" ? "is-active" : ""} onClick={() => switchLocale("ko")}>KO</button>
             <button className={locale === "en" ? "is-active" : ""} onClick={() => switchLocale("en")}>EN</button>
           </div>
-          <button className="button button-outline header-cta" onClick={() => { setComposerOpen(true); setMessage(""); }}>{t.register}</button>
+          {viewer ? <span className="header-account" title={viewer.displayName}><small>{t.signedIn}</small><b>{viewer.displayName}</b><button type="button" onClick={signOut}>{t.signOut}</button></span> : <button className="button button-quiet header-signin" type="button" onClick={openComposer}>{t.signInButton}</button>}
+          <button className="button button-outline header-cta" onClick={openComposer}>{t.register}</button>
         </div>
       </header>
 
@@ -387,7 +449,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
             {!loading && visible.length === 0 ? (
               <div className="leaderboard-empty">
                 <span>{t.official} · HV / 000</span><h2>{t.emptyOfficial}</h2><p>{t.emptyBody}</p>
-                <button className="button button-primary" onClick={() => setComposerOpen(true)}>{t.register}</button>
+                <button className="button button-primary" onClick={openComposer}>{t.register}</button>
               </div>
             ) : null}
 
@@ -447,7 +509,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
 
       {composerOpen ? <div className="modal-backdrop"><section className="passport-modal onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="composer-title">
         <div className="modal-heading"><div><p className="eyebrow">{t.register}</p><h2 id="composer-title">{t.modalTitle}</h2><p>{t.modalLead}</p></div><button className="modal-close" aria-label={t.close} onClick={() => setComposerOpen(false)}>×</button></div>
-        <div className="onboarding-steps">
+        {!authChecked ? <div className="auth-loading">…</div> : !viewer ? <PasskeyAuth locale={locale} onAuthenticated={refreshViewer} /> : <><div className="onboarding-steps">
           <section className={profileReady ? "is-complete" : "is-active"}><span>01</span><h3>{t.profileStep}</h3>
             <form onSubmit={saveProfile}><label>{t.handle}<input value={handle} onChange={(event) => setHandle(event.target.value.toLowerCase())} pattern="[a-z0-9_]{3,24}" maxLength={24} required /></label><label>{t.displayName}<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={40} required /></label><button className="button button-outline" disabled={busy}>{t.saveProfile}</button></form>
           </section>
@@ -467,7 +529,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
             {assessmentState?.passport ? <div className="publish-preview"><dl><div><dt>HV RATING</dt><dd>{assessmentState.passport.hvRating}</dd></div><div><dt>OVR</dt><dd>{assessmentState.passport.ovr}</dd></div><div><dt>REL</dt><dd>{assessmentState.passport.reliabilityScore}</dd></div><div><dt>EVIDENCE</dt><dd>{assessmentState.passport.evidenceLevel}</dd></div></dl><strong className="auto-published">{assessmentState.passport.status === "PUBLISHED" ? t.published : assessmentState.passport.status}</strong></div> : <p>{t.waiting}</p>}
           </section>
         </div>
-        <p className="privacy-note"><strong>LOCAL-FIRST</strong> {t.privacy}</p>{message ? <p className="form-message" role="status">{message}</p> : null}
+        <p className="privacy-note"><strong>LOCAL-FIRST</strong> {t.privacy}</p>{message ? <p className="form-message" role="status">{message}</p> : null}</>}
       </section></div> : null}
     </div>
   );
