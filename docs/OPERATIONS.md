@@ -7,8 +7,8 @@
 3. Run typecheck, lint, tests, migration check, and production build.
 4. Apply D1 migrations before deploying application code.
 5. Deploy through the configured Sites project.
-6. Verify protocol, Official/Open leaderboard, profile, auth rejection, and
-   disabled legacy submission endpoints.
+6. Verify protocol, public official leaderboard, profile, auth rejection,
+   automatic publication, and absence of legacy submission routes.
 
 Migration failure stops the release. Request handlers must never create tables.
 Restore is performed from the pre-release D1 backup; forward fixes use a new

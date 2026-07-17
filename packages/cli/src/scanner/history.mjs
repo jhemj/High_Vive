@@ -114,13 +114,17 @@ function extractUserText(record) {
 
 function extractToolName(record) {
   const value = record.name ?? record.tool_name ?? record.payload?.name ?? record.payload?.tool_name;
-  return typeof value === "string" ? value.slice(0, 80) : "";
+  if (typeof value === "string") return value.slice(0, 80);
+  const content = record.message?.content ?? record.content ?? record.payload?.message?.content ?? record.payload?.content;
+  if (!Array.isArray(content)) return "";
+  const tool = content.find((part) => part && typeof part === "object" && part.type === "tool_use" && typeof part.name === "string");
+  return tool?.name?.slice(0, 80) ?? "";
 }
 
-async function scanSession(file, codexHome) {
+async function scanSession(file, historyHome, sourceTool = "codex") {
   const info = await lstat(file);
   if (info.isSymbolicLink() || !info.isFile()) return null;
-  const relativePath = relative(codexHome, file).split(sep).join("/");
+  const relativePath = relative(historyHome, file).split(sep).join("/");
   const ref = `session:${sha256(relativePath).slice(0, 24)}`;
   const stream = createReadStream(file, { encoding: "utf8" });
   const lines = createInterface({ input: stream, crlfDelay: Infinity });
@@ -167,7 +171,8 @@ async function scanSession(file, codexHome) {
   const best = samples[0] ?? null;
   const leaf = {
     ref,
-    source: relativePath.startsWith("archived_sessions/") ? "archived_sessions" : "sessions",
+    source: sourceTool === "claude-code" ? "projects" : relativePath.startsWith("archived_sessions/") ? "archived_sessions" : "sessions",
+    tool: sourceTool,
     startedAt,
     endedAt,
     records,
@@ -216,13 +221,14 @@ export function merkleProof(tree, recordIndex) {
   return siblings;
 }
 
-export async function scanHistory({ codexHome, progress = () => {} }) {
-  const roots = [join(codexHome, "sessions"), join(codexHome, "archived_sessions")];
+export async function scanHistory({ codexHome, historyHome = codexHome, sourceTool = "codex", progress = () => {} }) {
+  const home = resolve(historyHome || defaultCodexHome());
+  const roots = sourceTool === "claude-code" ? [join(home, "projects")] : [join(home, "sessions"), join(home, "archived_sessions")];
   const files = (await Promise.all(roots.map(collectJsonlFiles))).flat().sort();
-  if (!files.length) throw new Error(`No Codex session JSONL files were found under ${codexHome}.`);
+  if (!files.length) throw new Error(`No ${sourceTool === "claude-code" ? "Claude Code" : "Codex"} session JSONL files were found under ${home}.`);
   const sessions = [];
   for (let index = 0; index < files.length; index += 1) {
-    const session = await scanSession(files[index], codexHome);
+    const session = await scanSession(files[index], home, sourceTool);
     if (session) sessions.push(session);
     if ((index + 1) % 25 === 0 || index + 1 === files.length) progress(index + 1, files.length);
   }
@@ -251,7 +257,7 @@ export async function scanHistory({ codexHome, progress = () => {} }) {
       scannerVersion: SCANNER_VERSION,
       canonicalizationVersion: CANONICALIZATION_VERSION,
       redactionVersion: REDACTION_VERSION,
-      scope: { ...totals, activeDaySignal: "session-boundary-days", merkleLeafCount: sessions.length },
+      scope: { ...totals, tools: [sourceTool], activeDaySignal: "session-boundary-days", merkleLeafCount: sessions.length },
     },
     aggregates: totals,
     sessions: tree.records.map((session, index) => ({ ...session, treeIndex: index })),
@@ -317,8 +323,14 @@ export function defaultCodexHome() {
   return resolve(process.env.CODEX_HOME || join(process.env.USERPROFILE || process.env.HOME || ".", ".codex"));
 }
 
-export async function scanPathSize(codexHome) {
-  const paths = [join(codexHome, "sessions"), join(codexHome, "archived_sessions")];
+export function defaultClaudeHome() {
+  return resolve(process.env.CLAUDE_CONFIG_DIR || join(process.env.USERPROFILE || process.env.HOME || ".", ".claude"));
+}
+
+export async function scanPathSize(historyHome, sourceTool = "codex") {
+  const paths = sourceTool === "claude-code"
+    ? [join(historyHome, "projects")]
+    : [join(historyHome, "sessions"), join(historyHome, "archived_sessions")];
   const values = await Promise.all(paths.map(async (path) => {
     try { return { path: basename(path), exists: (await stat(path)).isDirectory() }; } catch { return { path: basename(path), exists: false }; }
   }));

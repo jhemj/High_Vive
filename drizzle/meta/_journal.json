@@ -22,6 +22,13 @@
       "when": 1784264721197,
       "tag": "0002_closed_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1784270000000,
+      "tag": "0003_auto_publish_submitted",
+      "breakpoints": true
     }
   ]
 }

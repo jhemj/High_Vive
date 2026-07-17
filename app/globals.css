@@ -1998,6 +1998,10 @@ a {
   background: #294154;
 }
 
+.agent-switch {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .platform-switch button {
   min-height: 34px;
   border: 0;
@@ -2105,6 +2109,17 @@ a {
   font-family: var(--font-display);
   font-size: 23px;
   font-weight: 900;
+}
+
+.auto-published {
+  display: block;
+  padding: 13px;
+  border: 1px solid rgba(53, 240, 195, 0.45);
+  background: rgba(53, 240, 195, 0.08);
+  color: var(--lime);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-align: center;
 }
 
 .onboarding-modal > .privacy-note {

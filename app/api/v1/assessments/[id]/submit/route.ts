@@ -98,11 +98,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       surface: cleanText(evaluatorInput.surface, 40, 3),
       model: cleanText(evaluatorInput.model, 80, 2),
       codexVersion: cleanText(evaluatorInput.codexVersion, 60, 1),
+      agentVersion: cleanText(evaluatorInput.agentVersion || evaluatorInput.claudeVersion || evaluatorInput.codexVersion, 100, 1),
       calibrationVersion: cleanText(evaluatorInput.calibrationVersion, 60, 1),
       anchorResults: evaluatorInput.anchorResults && typeof evaluatorInput.anchorResults === "object" ? evaluatorInput.anchorResults : {},
       tools: cleanList(evaluatorInput.tools, 4, 30),
     };
-    if (!evaluator.surface || !evaluator.model || !evaluator.codexVersion) throw new ApiError(400, "EVALUATOR_METADATA_REQUIRED", "Codex evaluator metadata is required.");
+    if (!evaluator.surface || !evaluator.model || !evaluator.agentVersion) throw new ApiError(400, "EVALUATOR_METADATA_REQUIRED", "AI evaluator metadata is required.");
 
     const sampleProofInputs = Array.isArray(payload.sampleProofs) ? payload.sampleProofs.slice(0, 24) : [];
     const validProofs: Array<Record<string, unknown>> = [];
@@ -151,17 +152,20 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
           id, profile_id, assessment_id, previous_version_id, status, category, subfields_json,
           summary_json, strengths_json, weaknesses_json, raw_scores_json, calibrated_scores_json,
           ovr, hv_rating, tier, tier_division, reliability_score, evidence_level, evaluator_json,
-          limitations_json, payload_hash, protocol_version, is_demo, created_at
-        ) VALUES (?, ?, ?, ?, 'SUBMITTED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+          limitations_json, payload_hash, protocol_version, is_demo, published_at, created_at
+        ) VALUES (?, ?, ?, ?, 'PUBLISHED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
       ).bind(
         passportId, access.assessment.profileId, id, current.currentPassportId, category, JSON.stringify(subfields),
         JSON.stringify(summary), JSON.stringify(strengths), JSON.stringify(weaknesses), JSON.stringify(rawScores),
         JSON.stringify(calibratedScores), ovr, hvRating, tier, tierDivision, reliabilityScore, evidenceLevel,
-        JSON.stringify(evaluator), JSON.stringify(limitations), payloadHash, PROTOCOL_VERSION, now,
+        JSON.stringify(evaluator), JSON.stringify(limitations), payloadHash, PROTOCOL_VERSION, now, now,
       ),
       d1.prepare(
-        "UPDATE assessment_sessions SET status = 'SUBMITTED', assessed_at = COALESCE(assessed_at, ?), submitted_at = ?, updated_at = ? WHERE id = ? AND status IN ('CHALLENGED','ASSESSED')",
-      ).bind(now, now, now, id),
+        "UPDATE assessment_sessions SET status = 'PUBLISHED', assessed_at = COALESCE(assessed_at, ?), submitted_at = ?, published_at = ?, updated_at = ? WHERE id = ? AND status IN ('CHALLENGED','ASSESSED')",
+      ).bind(now, now, now, now, id),
+      d1.prepare(
+        "UPDATE profiles SET current_passport_id = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+      ).bind(passportId, now, access.assessment.profileId, access.userId),
       ...metrics.map((metric) => d1.prepare(
         `INSERT INTO passport_metric_evidence
          (id, passport_id, metric_key, raw_score, calibrated_score, confidence, rationale, supporting_refs_json, counter_refs_json, limitation)
@@ -186,10 +190,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (String(error).toLowerCase().includes("unique")) throw new ApiError(409, "SUBMISSION_REPLAY", "This assessment or manifest has already been submitted.");
       throw error;
     }
-    await auditEvent(access.userId, "PASSPORT_SUBMITTED", "passport", passportId, { assessmentId: id, evidenceLevel, protocolVersion: PROTOCOL_VERSION });
+    await auditEvent(access.userId, "PASSPORT_PUBLISHED", "passport", passportId, { assessmentId: id, evidenceLevel, protocolVersion: PROTOCOL_VERSION, automatic: true });
     return jsonResponse({
-      passport: { id: passportId, status: "SUBMITTED", ovr, hvRating, provisionalTier: tier, tierDivision, reliabilityScore, evidenceLevel, protocolVersion: PROTOCOL_VERSION },
-      publishRequired: true,
+      passport: { id: passportId, status: "PUBLISHED", ovr, hvRating, provisionalTier: tier, tierDivision, reliabilityScore, evidenceLevel, protocolVersion: PROTOCOL_VERSION },
+      publishRequired: false,
     }, 201);
   } catch (error) {
     return errorResponse(error);

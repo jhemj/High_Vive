@@ -57,3 +57,22 @@ test("Merkle root changes when a leaf changes", () => {
   const two = buildMerkleTree([{ leaf: { ref: "a" }, leafHash: "a".repeat(64) }, { leaf: { ref: "b" }, leafHash: "c".repeat(64) }]);
   assert.notEqual(one.root, two.root);
 });
+
+test("Claude Code projects history produces a dedicated deterministic commitment", async () => {
+  const root = await mkdtemp(join(tmpdir(), "high-vive-claude-scan-"));
+  const project = join(root, "projects", "sample-project");
+  await mkdir(project, { recursive: true });
+  const rows = [
+    { timestamp: "2026-07-10T00:00:00.000Z", message: { role: "user", content: [{ type: "text", text: "백엔드 API를 구현하고 테스트로 검증해줘" }] } },
+    { timestamp: "2026-07-10T00:01:00.000Z", message: { role: "assistant", content: [{ type: "tool_use", name: "Bash", input: {} }] } },
+  ];
+  await writeFile(join(project, "session.jsonl"), rows.map(JSON.stringify).join("\n"));
+  const first = await scanHistory({ historyHome: root, sourceTool: "claude-code" });
+  const second = await scanHistory({ historyHome: root, sourceTool: "claude-code" });
+  assert.equal(first.commitment.historyRoot, second.commitment.historyRoot);
+  assert.deepEqual(first.commitment.scope.tools, ["claude-code"]);
+  assert.equal(first.sessions[0].leaf.source, "projects");
+  assert.equal(first.sessions[0].leaf.tool, "claude-code");
+  assert.equal(first.sessions[0].leaf.toolCalls, 1);
+  assert.equal(first.commitment.sessionCount, 1);
+});

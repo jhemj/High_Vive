@@ -4,8 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CATEGORIES, METRICS, PROTOCOL_VERSION } from "../packages/protocol/runtime.mjs";
 
 type Locale = "ko" | "en";
-type Board = "official" | "open";
 type Platform = "windows" | "macos" | "ubuntu";
+type WitnessTool = "codex" | "claude-code";
 type LocalizedText = { ko: string; en: string };
 type Scores = Record<string, number>;
 
@@ -30,7 +30,7 @@ type Passport = {
   reliabilityScore: number;
   evidenceLevel: string;
   evidenceLabel: string;
-  evaluator: { tools?: string[]; model?: string; codexVersion?: string };
+  evaluator: { tools?: string[]; model?: string; codexVersion?: string; agentVersion?: string };
   limitations: string[];
   protocolVersion: string;
   isDemo: boolean;
@@ -51,9 +51,7 @@ const copy = {
     title: "바이브코더 리더보드",
     subtitle: "당신과 함께 일한 AI가 평가하는 바이브코딩 실력.",
     official: "OFFICIAL",
-    open: "OPEN",
     officialHelp: "Challenge-bound · 신뢰도 60+ · 현행 Protocol",
-    openHelp: "Legacy · Self-reported · Local scan 포함",
     all: "전체",
     participants: "참가자",
     serverLlm: "서버 LLM",
@@ -73,28 +71,28 @@ const copy = {
     profile: "프로필 열기",
     register: "내 패스포트 등록",
     emptyOfficial: "아직 공식 Passport가 없습니다.",
-    emptyOpen: "아직 공개 Passport가 없습니다.",
     emptyBody: "첫 Challenge-bound 평가를 시작해 High-Vive 기록을 만드세요.",
     methodology: "평가 방법",
     methodTitle: "실력과 신뢰를 분리한 AI Witness 벤치마크",
-    methodBody: "로컬 Codex가 10개 원점수를 평가하고, 서버는 고정된 calibration으로 OVR과 HV Rating을 계산합니다. Reliability는 소유권·commitment·challenge·proof만 반영하며 실력 점수에 더하지 않습니다.",
+    methodBody: "로컬 Codex 또는 Claude Code가 10개 원점수를 평가하고, 서버는 고정된 calibration으로 OVR과 HV Rating을 계산합니다. Reliability는 소유권·commitment·challenge·proof만 반영하며 실력 점수에 더하지 않습니다.",
     steps: [
-      ["LOCAL SCAN", "Codex 전체 이력을 기기에서 읽기 전용으로 집계합니다."],
+      ["LOCAL SCAN", "선택한 AI 코딩 에이전트의 전체 로컬 이력을 읽기 전용으로 집계합니다."],
       ["COMMIT", "원문 대신 canonical evidence Merkle root를 먼저 등록합니다."],
       ["CHALLENGE", "서버 seed로 표본을 결정론적으로 선택하고 proof를 연결합니다."],
-      ["CODEX WITNESS", "로컬 Codex가 지표별 점수·confidence·근거·한계를 작성합니다."],
+      ["AI WITNESS", "로컬 Codex 또는 Claude Code가 지표별 점수·confidence·근거·한계를 작성합니다."],
       ["SERVER RATING", "서버가 OVR·HV Rating·Reliability·Provisional Tier를 재계산합니다."],
     ],
     transparency: "투명성",
-    transparencyBody: "특정 기기와 평가 시점에 발견된 로컬 Codex 이력을 분석한 AI Witness 평가입니다. 신원, 전체 업무 이력, 실제 성과 또는 고용 적합성을 보증하지 않습니다.",
+    transparencyBody: "특정 기기와 평가 시점에 발견된 로컬 AI 코딩 에이전트 이력을 분석한 AI Witness 평가입니다. 신원, 전체 업무 이력, 실제 성과 또는 고용 적합성을 보증하지 않습니다.",
     modalTitle: "공식 Passport 만들기",
-    modalLead: "원문은 기기에 남기고, commitment와 승인된 공개 manifest만 등록합니다.",
+    modalLead: "원문은 기기에 남기고, commitment와 공개 manifest만 등록한 뒤 자동 공개합니다.",
     profileStep: "1. 공개 handle",
     cliStep: "2. 로컬 평가",
-    publishStep: "3. 공개 승인",
+    publishStep: "3. 자동 공개",
     handle: "handle",
     displayName: "공개 이름",
     saveProfile: "프로필 저장",
+    agentChoice: "평가 에이전트",
     detectedEnvironment: "접속 환경 자동 감지",
     changeEnvironment: "환경 직접 선택",
     codexStart: "Codex 앱에서 바로 시작",
@@ -105,11 +103,10 @@ const copy = {
     copied: "복사됨",
     assessmentStatus: "평가 상태",
     waiting: "CLI 평가를 기다리는 중",
-    publish: "Passport 공개",
     published: "공개 완료",
     close: "닫기",
     signIn: "계속하려면 ChatGPT 계정으로 로그인해야 합니다.",
-    privacy: "Codex 대화 원문, 로컬 파일, 절대 경로, tool arguments는 서버로 전송되지 않습니다.",
+    privacy: "Codex·Claude Code 대화 원문, 로컬 파일, 절대 경로, tool arguments는 서버로 전송되지 않습니다.",
     noSelection: "표시할 Passport가 없습니다.",
   },
   en: {
@@ -117,9 +114,7 @@ const copy = {
     title: "VIBE CODER LEADERBOARD",
     subtitle: "Vibe-coding skill, evaluated by the AI that works with you.",
     official: "OFFICIAL",
-    open: "OPEN",
     officialHelp: "Challenge-bound · Reliability 60+ · Current Protocol",
-    openHelp: "Includes legacy, self-reported, and local scans",
     all: "All",
     participants: "Players",
     serverLlm: "Server LLM",
@@ -139,28 +134,28 @@ const copy = {
     profile: "Open profile",
     register: "Create my Passport",
     emptyOfficial: "No official Passports yet.",
-    emptyOpen: "No public Passports yet.",
     emptyBody: "Start the first challenge-bound assessment and establish the High-Vive record.",
     methodology: "Method",
     methodTitle: "An AI Witness benchmark that separates skill from trust",
-    methodBody: "Local Codex scores ten raw metrics. The server applies fixed calibration to calculate OVR and HV Rating. Reliability reflects ownership, commitment, challenge, and proofs only; it is never added to skill.",
+    methodBody: "Local Codex or Claude Code scores ten raw metrics. The server applies fixed calibration to calculate OVR and HV Rating. Reliability reflects ownership, commitment, challenge, and proofs only; it is never added to skill.",
     steps: [
-      ["LOCAL SCAN", "Read-only aggregation of the full local Codex history."],
+      ["LOCAL SCAN", "Read-only aggregation of the selected AI coding agent's full local history."],
       ["COMMIT", "Register a canonical evidence Merkle root, not transcripts."],
       ["CHALLENGE", "Use a server seed for deterministic samples and proofs."],
-      ["CODEX WITNESS", "Local Codex writes metric scores, confidence, evidence, and limits."],
+      ["AI WITNESS", "Local Codex or Claude Code writes metric scores, confidence, evidence, and limits."],
       ["SERVER RATING", "The server recalculates OVR, HV Rating, Reliability, and Provisional Tier."],
     ],
     transparency: "Transparency",
-    transparencyBody: "An AI Witness assessment of local Codex history found on a specific device at a specific time. It does not prove identity, complete work history, real-world outcomes, or hiring fitness.",
+    transparencyBody: "An AI Witness assessment of local AI coding-agent history found on a specific device at a specific time. It does not prove identity, complete work history, real-world outcomes, or hiring fitness.",
     modalTitle: "Create an official Passport",
-    modalLead: "Raw history stays on your device. Only commitments and an approved public manifest are registered.",
+    modalLead: "Raw history stays on your device. The commitment and public manifest are registered and published automatically.",
     profileStep: "1. Public handle",
     cliStep: "2. Local assessment",
-    publishStep: "3. Publish approval",
+    publishStep: "3. Automatic publish",
     handle: "Handle",
     displayName: "Display name",
     saveProfile: "Save profile",
+    agentChoice: "Assessment agent",
     detectedEnvironment: "Detected environment",
     changeEnvironment: "Choose another environment",
     codexStart: "Start in the Codex app",
@@ -171,11 +166,10 @@ const copy = {
     copied: "Copied",
     assessmentStatus: "Assessment status",
     waiting: "Waiting for the CLI assessment",
-    publish: "Publish Passport",
     published: "Published",
     close: "Close",
     signIn: "Sign in with your ChatGPT account to continue.",
-    privacy: "Codex transcripts, local files, absolute paths, and tool arguments are not uploaded.",
+    privacy: "Codex and Claude Code transcripts, local files, absolute paths, and tool arguments are not uploaded.",
     noSelection: "No Passport to display.",
   },
 } as const;
@@ -195,7 +189,7 @@ const metricDescriptions: Record<string, LocalizedText> = {
 
 const tierKo: Record<string, string> = {
   Iron: "아이언", Bronze: "브론즈", Silver: "실버", Gold: "골드", Platinum: "플래티넘",
-  Emerald: "에메랄드", Diamond: "다이아몬드", Master: "마스터", Grandmaster: "그랜드마스터", Challenger: "챌린저", Legacy: "레거시",
+  Emerald: "에메랄드", Diamond: "다이아몬드", Master: "마스터", Grandmaster: "그랜드마스터", Challenger: "챌린저",
 };
 
 function localized(value: LocalizedText | undefined, locale: Locale) {
@@ -238,12 +232,7 @@ function ToolBadges({ tools = [] }: { tools?: string[] }) {
 }
 
 export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
-  const [locale, setLocale] = useState<Locale>(() => {
-    if (typeof window === "undefined") return initialLocale;
-    const stored = window.localStorage.getItem("high-vive-locale");
-    return stored === "ko" || stored === "en" ? stored : initialLocale;
-  });
-  const [board, setBoard] = useState<Board>("official");
+  const [locale, setLocale] = useState<Locale>(initialLocale);
   const [category, setCategory] = useState("__all__");
   const [passports, setPassports] = useState<Passport[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -254,6 +243,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   const [profileReady, setProfileReady] = useState(false);
   const [assessmentState, setAssessmentState] = useState<AssessmentState | null>(null);
   const [platform, setPlatform] = useState<Platform>("windows");
+  const [witnessTool, setWitnessTool] = useState<WitnessTool>("codex");
   const [serverOrigin, setServerOrigin] = useState(DEFAULT_SERVER);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -262,6 +252,8 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      const stored = window.localStorage.getItem("high-vive-locale");
+      if (stored === "ko" || stored === "en") setLocale(stored);
       setPlatform(detectPlatform());
       setServerOrigin(window.location.origin);
     }, 0);
@@ -270,7 +262,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/v1/leaderboards?board=${board}&pageSize=100`, { headers: { "x-high-vive-locale": locale } })
+    fetch("/api/v1/leaderboards?pageSize=100", { headers: { "x-high-vive-locale": locale } })
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result?.error?.message || "Leaderboard unavailable");
@@ -282,7 +274,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
       .catch((error) => active && setMessage(error instanceof Error ? error.message : String(error)))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [board, locale]);
+  }, [locale, assessmentState?.passport?.status]);
 
   useEffect(() => {
     if (!composerOpen) return;
@@ -316,11 +308,11 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   const topThree = visible.slice(0, 3);
   const podium = [topThree[1], topThree[0], topThree[2]].filter(Boolean) as Passport[];
   const terminalCommand = platform === "windows"
-    ? `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.ps1 | iex"`
-    : `curl -fsSL https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.sh | HIGH_VIVE_SERVER=${serverOrigin} bash`;
+    ? `powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:HIGH_VIVE_SERVER='${serverOrigin}'; $env:HIGH_VIVE_AGENT='${witnessTool}'; irm https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.ps1 | iex"`
+    : `curl -fsSL https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.sh | HIGH_VIVE_SERVER='${serverOrigin}' HIGH_VIVE_AGENT='${witnessTool}' bash`;
   const codexPrompt = locale === "ko"
-    ? `High-Vive Passport 평가를 시작해줘. jhemj/High_Vive 저장소를 열거나 내려받고 의존성을 준비한 뒤, pnpm high-vive -- prepare --server ${serverOrigin} 를 실행해. 생성된 .high-vive/assessment-instructions.md를 읽고 정직한 passport-draft.json을 작성해. 공개 preview를 나에게 보여주고 명시적 승인을 받은 뒤에만 pnpm high-vive -- submit을 실행해. 원문 transcript와 private-evidence.json은 절대 업로드하지 마.`
-    : `Start my High-Vive Passport assessment. Open or download jhemj/High_Vive, prepare its dependencies, then run pnpm high-vive -- prepare --server ${serverOrigin}. Read .high-vive/assessment-instructions.md and write an honest passport-draft.json. Show me the public preview and run pnpm high-vive -- submit only after my explicit approval. Never upload raw transcripts or private-evidence.json.`;
+    ? `High-Vive Passport 평가를 시작해줘. jhemj/High_Vive 저장소를 열거나 내려받고 의존성을 준비한 뒤, pnpm high-vive -- prepare --server ${serverOrigin} --agent codex 를 실행해. 생성된 .high-vive/assessment-instructions.md를 읽고 정직한 passport-draft.json을 작성해. 공개 preview를 짧게 보여준 다음 pnpm high-vive -- submit을 바로 실행해. 원문 transcript와 private-evidence.json은 절대 업로드하지 마.`
+    : `Start my High-Vive Passport assessment. Open or download jhemj/High_Vive, prepare its dependencies, then run pnpm high-vive -- prepare --server ${serverOrigin} --agent codex. Read .high-vive/assessment-instructions.md and write an honest passport-draft.json. Show a short public preview, then run pnpm high-vive -- submit immediately. Never upload raw transcripts or private-evidence.json.`;
   const codexDeepLink = `codex://new?originUrl=${encodeURIComponent("https://github.com/jhemj/High_Vive.git")}&prompt=${encodeURIComponent(codexPrompt)}`;
 
   function switchLocale(next: Locale) {
@@ -354,22 +346,6 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
     window.setTimeout(() => setCopied(false), 1600);
   }
 
-  async function publishPassport() {
-    const passportId = assessmentState?.passport?.id;
-    if (!passportId) return;
-    setBusy(true);
-    try {
-      const response = await fetch(`/api/v1/passports/${passportId}/publish`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result?.error?.message || "Publish failed");
-      setMessage(t.published);
-      setAssessmentState((current) => current ? { ...current, passport: current.passport ? { ...current.passport, status: "PUBLISHED" } : current.passport } : current);
-      setBoard("official");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally { setBusy(false); }
-  }
-
   return (
     <div className="high-vive-app">
       <header className="site-header">
@@ -395,15 +371,6 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
               </dl>
             </div>
 
-            <div className="board-switch" role="tablist" aria-label="Leaderboard type">
-              {(["official", "open"] as Board[]).map((item) => (
-                <button key={item} role="tab" aria-selected={board === item} className={board === item ? "is-active" : ""} onClick={() => { setBoard(item); setCategory("__all__"); }}>
-                  <strong>{item === "official" ? t.official : t.open}</strong>
-                  <small>{item === "official" ? t.officialHelp : t.openHelp}</small>
-                </button>
-              ))}
-            </div>
-
             <div className="field-tabs" aria-label="Category filter">
               <button className={category === "__all__" ? "is-active" : ""} onClick={() => setCategory("__all__")}>{t.all}</button>
               {CATEGORIES.map((item) => <button key={item.key} className={category === item.key ? "is-active" : ""} onClick={() => setCategory(item.key)}>{item[locale]}</button>)}
@@ -411,7 +378,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
 
             {!loading && visible.length === 0 ? (
               <div className="leaderboard-empty">
-                <span>HV / 000</span><h2>{board === "official" ? t.emptyOfficial : t.emptyOpen}</h2><p>{t.emptyBody}</p>
+                <span>{t.official} · HV / 000</span><h2>{t.emptyOfficial}</h2><p>{t.emptyBody}</p>
                 <button className="button button-primary" onClick={() => setComposerOpen(true)}>{t.register}</button>
               </div>
             ) : null}
@@ -477,15 +444,17 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
             <form onSubmit={saveProfile}><label>{t.handle}<input value={handle} onChange={(event) => setHandle(event.target.value.toLowerCase())} pattern="[a-z0-9_]{3,24}" maxLength={24} required /></label><label>{t.displayName}<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={40} required /></label><button className="button button-outline" disabled={busy}>{t.saveProfile}</button></form>
           </section>
           <section className={assessmentState?.assessment ? "is-complete" : profileReady ? "is-active" : ""}><span>02</span><h3>{t.cliStep}</h3>
+            <p className="environment-detected"><b>{t.agentChoice}</b><span>{witnessTool === "codex" ? "Codex" : "Claude Code"}</span></p>
+            <div className="platform-switch agent-switch" role="tablist" aria-label={t.agentChoice}>{(["codex", "claude-code"] as WitnessTool[]).map((item) => <button key={item} type="button" role="tab" aria-selected={witnessTool === item} className={witnessTool === item ? "is-active" : ""} onClick={() => setWitnessTool(item)}>{item === "codex" ? "Codex" : "Claude Code"}</button>)}</div>
             <p className="environment-detected"><b>{t.detectedEnvironment}</b><span>{platformLabels[platform]}</span></p>
             <div className="platform-switch" role="tablist" aria-label={t.changeEnvironment}>{(["windows", "macos", "ubuntu"] as Platform[]).map((item) => <button key={item} type="button" role="tab" aria-selected={platform === item} className={platform === item ? "is-active" : ""} onClick={() => setPlatform(item)}>{platformLabels[item]}</button>)}</div>
-            {platform !== "ubuntu" && profileReady ? <a className="button button-primary codex-launch" href={codexDeepLink}>{t.codexStart}</a> : null}
-            {platform !== "ubuntu" ? <small className="launch-help">{t.codexStartHelp}</small> : null}
+            {witnessTool === "codex" && platform !== "ubuntu" && profileReady ? <a className="button button-primary codex-launch" href={codexDeepLink}>{t.codexStart}</a> : null}
+            {witnessTool === "codex" && platform !== "ubuntu" ? <small className="launch-help">{t.codexStartHelp}</small> : null}
             <div className="terminal-option"><b>{t.terminalFallback}</b><small>{t.terminalHelp}</small><pre className="cli-command">{terminalCommand}</pre><button className="button button-outline" type="button" disabled={!profileReady} onClick={copyCommand}>{copied ? t.copied : t.copyCommand}</button></div>
             <p className="assessment-live"><b>{t.assessmentStatus}</b><span>{assessmentState?.assessment?.status || t.waiting}</span><small>{assessmentState?.commitment ? `${assessmentState.commitment.sessionCount} sessions · ${assessmentState.commitment.activeDays} active days` : t.waiting}</small></p>
           </section>
           <section className={assessmentState?.passport?.status === "PUBLISHED" ? "is-complete" : assessmentState?.passport ? "is-active" : ""}><span>03</span><h3>{t.publishStep}</h3>
-            {assessmentState?.passport ? <div className="publish-preview"><dl><div><dt>HV RATING</dt><dd>{assessmentState.passport.hvRating}</dd></div><div><dt>OVR</dt><dd>{assessmentState.passport.ovr}</dd></div><div><dt>REL</dt><dd>{assessmentState.passport.reliabilityScore}</dd></div><div><dt>EVIDENCE</dt><dd>{assessmentState.passport.evidenceLevel}</dd></div></dl><button className="button button-primary" disabled={busy || assessmentState.passport.status === "PUBLISHED"} onClick={publishPassport}>{assessmentState.passport.status === "PUBLISHED" ? t.published : t.publish}</button></div> : <p>{t.waiting}</p>}
+            {assessmentState?.passport ? <div className="publish-preview"><dl><div><dt>HV RATING</dt><dd>{assessmentState.passport.hvRating}</dd></div><div><dt>OVR</dt><dd>{assessmentState.passport.ovr}</dd></div><div><dt>REL</dt><dd>{assessmentState.passport.reliabilityScore}</dd></div><div><dt>EVIDENCE</dt><dd>{assessmentState.passport.evidenceLevel}</dd></div></dl><strong className="auto-published">{assessmentState.passport.status === "PUBLISHED" ? t.published : assessmentState.passport.status}</strong></div> : <p>{t.waiting}</p>}
           </section>
         </div>
         <p className="privacy-note"><strong>LOCAL-FIRST</strong> {t.privacy}</p>{message ? <p className="form-message" role="status">{message}</p> : null}

@@ -26,6 +26,9 @@ test("submit route recalculates all public rating fields", async () => {
   assert.match(source, /calculateReliability/);
   assert.match(source, /calculateTier/);
   assert.match(source, /INSERT INTO passport_versions/);
+  assert.match(source, /'PUBLISHED'/);
+  assert.match(source, /current_passport_id = \?/);
+  assert.match(source, /publishRequired: false/);
   assert.doesNotMatch(source, /ON CONFLICT\s*\(nickname\)/i);
 });
 
@@ -60,4 +63,19 @@ test("cross-platform installers and automatic CLI login are part of the release"
   assert.match(cli, /ensureConfig/);
   assert.match(cli, /prepareAssessment/);
   assert.match(cli, /@openai\/codex/);
+  assert.match(cli, /runClaude/);
+  assert.match(cli, /Published automatically/);
+  assert.doesNotMatch(cli, /Submit this public Passport manifest/);
+  assert.match(windowsInstaller, /@anthropic-ai\/claude-code/);
+  assert.match(unixInstaller, /@anthropic-ai\/claude-code/);
+});
+
+test("local Cloudflare runtime config has one supported compatibility source", async () => {
+  const [viteConfig, wranglerConfig] = await Promise.all([
+    readFile(new URL("../vite.config.ts", import.meta.url), "utf8"),
+    readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(viteConfig, /compatibility_flags/);
+  assert.match(wranglerConfig, /"compatibility_flags": \["nodejs_compat"\]/);
+  assert.match(wranglerConfig, /"compatibility_date": "2026-05-22"/);
 });

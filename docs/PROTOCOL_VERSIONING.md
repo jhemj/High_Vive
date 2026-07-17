@@ -11,5 +11,6 @@ separate versions.
 
 The constants live in `packages/protocol/runtime.mjs`; API, CLI, and web import
 that package. A Passport stores all relevant versions. Official eligibility
-requires the current supported protocol, while older records remain available
-in Open/history. Version changes require schema snapshots and boundary tests.
+requires the current supported protocol. Older records remain append-only in
+storage and profile history when owned, but are excluded from the public
+leaderboard. Version changes require schema snapshots and boundary tests.

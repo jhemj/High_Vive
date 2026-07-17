@@ -11,7 +11,7 @@
     "recordCount": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
     "activeDays": { "type": "integer", "minimum": 1, "maximum": 10000 },
     "dateRange": { "type": "object", "required": ["from", "to"] },
-    "scannerVersion": { "const": "high-vive-cli-v1.0" },
+    "scannerVersion": { "const": "high-vive-cli-v1.1" },
     "canonicalizationVersion": { "const": "hv-canonical-json-v1" },
     "redactionVersion": { "const": "hv-redaction-v1" },
     "scope": { "type": "object" }

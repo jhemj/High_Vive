@@ -1,12 +1,9 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("legacy arbitrary JSON submission is disabled", async () => {
-  const source = await readFile(new URL("../app/api/passports/route.ts", import.meta.url), "utf8");
-  assert.match(source, /LEGACY_SUBMISSION_DISABLED/);
-  assert.match(source, /410/);
-  assert.doesNotMatch(source, /INSERT INTO passports|ON CONFLICT/);
+test("legacy arbitrary JSON route is absent", async () => {
+  await assert.rejects(access(new URL("../app/api/passports/route.ts", import.meta.url)));
 });
 
 test("ownership checks do not use nickname or handle", async () => {

@@ -1,7 +1,7 @@
 # High-Vive
 
 High-Vive is a local AI-witnessed benchmark and leaderboard for vibe coders.
-The user's local Codex evaluates the user's full local Codex history; the
+The user's local Codex or Claude Code evaluates that agent's full local history; the
 server verifies the assessment process and calculates comparable scores. The
 server makes **zero LLM calls**.
 
@@ -9,14 +9,14 @@ server makes **zero LLM calls**.
 
 ## v1.0 model
 
-- **Raw Score:** Codex Witness scores ten AI-collaboration metrics.
+- **Raw Score:** the selected local AI Witness scores ten AI-collaboration metrics.
 - **Calibrated OVR:** a versioned, deterministic calibration of the ten scores.
 - **HV Rating:** `round(Calibrated OVR × 10)`, from 0 to 1000. It is not Elo.
 - **Provisional Tier:** Iron through Challenger, derived from HV Rating.
 - **Reliability:** a separate server-calculated score for process integrity.
-- **Evidence Level:** E0 Self-Reported through E5 Longitudinal.
-- **Official leaderboard:** current-protocol, non-demo Passport with E2+ and
-  Reliability 60+; all other publishable records stay in Open.
+- **Evidence Level:** E2 Challenge-Bound through E5 Longitudinal on the public leaderboard.
+- **Public leaderboard:** current-protocol, non-demo Passport with E2+ and
+  Reliability 60+. Legacy and self-reported records are not exposed.
 
 Passport versions are append-only. Handles belong to authenticated profiles;
 nickname-based upserts and official raw-JSON submission are disabled.
@@ -25,8 +25,8 @@ nickname-based upserts and official raw-JSON submission are disabled.
 
 Open **Create my Passport** on the live site. The browser detects Windows,
 macOS, or Ubuntu and selects the matching path. Windows and macOS users can
-start the guided workflow in the Codex app; every platform also has a one-line
-installer that prepares Node.js and the CLI when necessary.
+start the guided Codex workflow in the Codex app; every platform can choose
+Codex or Claude Code and use a one-line installer that prepares the CLI.
 
 Windows PowerShell:
 
@@ -43,8 +43,9 @@ curl -fsSL https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/instal
 The CLI opens one-time High-Vive login automatically. `high-vive assess` scans
 `CODEX_HOME/sessions` and `archived_sessions` as a
 stream, commits a deterministic evidence root, receives a one-time server
-challenge, selects reproducible samples, runs the local Codex Witness, shows a
-preview, and submits only after approval.
+challenge, selects reproducible samples, runs the selected local AI Witness, shows a
+preview, then submits and publishes automatically. With `--agent claude-code`,
+the same flow scans `~/.claude/projects` and runs the local Claude Code Witness.
 
 Raw transcripts, absolute paths, tool arguments, command output, and local
 files do not leave the device by default. Generated private evidence remains in
@@ -92,7 +93,7 @@ handlers never create tables.
 ## Product boundary
 
 High-Vive is not a hiring service and does not certify identity, complete work
-history, actual business outcomes, or employment suitability. It records a
-Codex Witness assessment of local evidence found on one device at one point in
+history, actual business outcomes, or employment suitability. It records an
+AI Witness assessment of local evidence found on one device at one point in
 time. See `docs/PRIVACY.md`, `docs/BENCHMARK_METHOD.md`, and
 `docs/THREAT_MODEL.md`.

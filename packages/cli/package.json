@@ -1,7 +1,7 @@
 {
   "name": "high-vive",
   "version": "1.0.0",
-  "description": "Local Codex witness CLI for the High-Vive benchmark",
+  "description": "Local Codex and Claude Code witness CLI for the High-Vive benchmark",
   "type": "module",
   "bin": {
     "high-vive": "./src/index.mjs"

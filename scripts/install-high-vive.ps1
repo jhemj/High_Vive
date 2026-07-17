@@ -1,5 +1,7 @@
 param(
-  [string]$Server = "https://high-vive-league.ngmptdz.chatgpt.site"
+  [string]$Server = "https://high-vive-league.ngmptdz.chatgpt.site",
+  [ValidateSet("codex", "claude-code")]
+  [string]$Agent = "codex"
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,6 +14,9 @@ function Refresh-Path {
 }
 
 Write-Host "High-Vive · Windows setup" -ForegroundColor Cyan
+
+if ($env:HIGH_VIVE_SERVER) { $Server = $env:HIGH_VIVE_SERVER }
+if ($env:HIGH_VIVE_AGENT) { $Agent = $env:HIGH_VIVE_AGENT }
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
@@ -37,6 +42,12 @@ if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
   Refresh-Path
 }
 
+if ($Agent -eq "claude-code" -and -not (Get-Command claude -ErrorAction SilentlyContinue)) {
+  Write-Host "Installing Claude Code…"
+  npm install --global @anthropic-ai/claude-code
+  Refresh-Path
+}
+
 $installRoot = Join-Path $env:LOCALAPPDATA "High-Vive"
 $sourceRoot = Join-Path $installRoot "source"
 $archive = Join-Path $installRoot "high-vive-main.zip"
@@ -56,7 +67,7 @@ Remove-Item -LiteralPath $archive -Force
 Push-Location $sourceRoot
 try {
   pnpm install --frozen-lockfile
-  pnpm high-vive -- assess --server $Server
+  pnpm high-vive -- assess --server $Server --agent $Agent
 } finally {
   Pop-Location
 }

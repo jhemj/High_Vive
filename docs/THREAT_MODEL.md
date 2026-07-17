@@ -27,6 +27,6 @@
 ## Residual risk
 
 A user can omit or delete local history, select a different device, or influence
-their local Codex. High-Vive therefore reports evidence scope, confidence,
+their selected local Codex or Claude Code agent. High-Vive therefore reports evidence scope, confidence,
 protocol version, and verification level rather than claiming identity or total
 work-history proof.

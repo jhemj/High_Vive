@@ -17,3 +17,11 @@ test("runtime database helper never creates schema", async () => {
   const source = await readFile(new URL("../db/index.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /CREATE TABLE|ensureDbSchema/);
 });
+
+test("submitted official Passports are migrated to automatic publication", async () => {
+  const migration = await readFile(new URL("../drizzle/0003_auto_publish_submitted.sql", import.meta.url), "utf8");
+  assert.match(migration, /status` = 'PUBLISHED'/);
+  assert.match(migration, /evidence_level` IN \('E2', 'E3', 'E4', 'E5'\)/);
+  assert.match(migration, /reliability_score` >= 60/);
+  assert.match(migration, /current_passport_id/);
+});

@@ -9,8 +9,8 @@ pnpm passport:scan -- --nickname my_handle --country KR --timezone Asia/Seoul
 생성물은 Git에서 제외되는 `.high-vive/` 아래에 저장된다.
 
 - `history-evidence.json`: 전체 세션의 범위, 행동 신호, 토큰 집계, 도구 사용, 도메인 신호, 세션별 해시와 제한된 비식별 표본
-- `assessment-instructions.md`: Codex가 증거 번들을 평가해 공개용 Passport를 만드는 절차
-- `passport-draft.json`: Codex가 평가 후 작성할 공개 초안
+- `assessment-instructions.md`: 선택한 Codex 또는 Claude Code가 증거 번들을 평가해 공개용 Passport를 만드는 절차
+- `passport-draft.json`: 선택한 AI Witness가 평가 후 작성할 공개 초안
 
 모든 세션은 정량 집계와 evidence root에 반영된다. 다만 전체 대화 원문을 한 번에 모델 컨텍스트에 넣지는 않는다. 정성 평가는 세션별 대표 프롬프트를 비식별화한 표본으로 보정하며, 그 표본 수와 누락된 대용량 레코드 수를 Passport의 평가 범위에 명시한다.
 

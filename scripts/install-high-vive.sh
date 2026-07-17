@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SERVER="${HIGH_VIVE_SERVER:-https://high-vive-league.ngmptdz.chatgpt.site}"
+AGENT="${HIGH_VIVE_AGENT:-codex}"
 INSTALL_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/high-vive"
 SOURCE_ROOT="$INSTALL_ROOT/source"
 
@@ -39,6 +40,11 @@ if ! command -v pnpm >/dev/null 2>&1; then
   fi
 fi
 
+if [ "$AGENT" = "claude-code" ] && ! command -v claude >/dev/null 2>&1; then
+  echo "Installing Claude Code…"
+  npm install --global @anthropic-ai/claude-code
+fi
+
 mkdir -p "$INSTALL_ROOT"
 archive="$(mktemp "${TMPDIR:-/tmp}/high-vive.XXXXXX.tar.gz")"
 staging="$(mktemp -d "${TMPDIR:-/tmp}/high-vive.XXXXXX")"
@@ -52,4 +58,4 @@ mv "$staging/High_Vive-main" "$SOURCE_ROOT"
 
 cd "$SOURCE_ROOT"
 pnpm install --frozen-lockfile
-pnpm high-vive -- assess --server "$SERVER"
+pnpm high-vive -- assess --server "$SERVER" --agent "$AGENT"

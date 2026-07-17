@@ -2,7 +2,7 @@
 
 ## Evaluation split
 
-- Codex Witness: qualitative judgment and ten Raw Scores.
+- Local Codex or Claude Code Witness: qualitative judgment and ten Raw Scores.
 - High-Vive server: assessment ownership, challenge, commitment, schema,
   replay protection, calibration, HV Rating, Tier, Reliability, and eligibility.
 - User: reviews public content and explicitly publishes the Passport.
