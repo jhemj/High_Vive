@@ -10,7 +10,8 @@ export async function GET(_request: Request, context: { params: Promise<{ handle
     await refreshLeagueRatings();
     const handle = normalizeHandle((await context.params).handle);
     const profile = await getD1().prepare(
-      `SELECT id, handle, display_name AS displayName, bio, country, timezone,
+      `SELECT id, handle, display_name AS displayName, bio, country,
+       preferred_category AS preferredCategory, timezone,
        languages_json AS languagesJson, links_json AS linksJson, current_passport_id AS currentPassportId,
        created_at AS createdAt, updated_at AS updatedAt
        FROM profiles WHERE handle = ? AND is_public = 1 LIMIT 1`,

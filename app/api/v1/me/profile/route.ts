@@ -5,6 +5,7 @@ import {
   requireBrowserUser,
 } from "../../../../../packages/shared/server";
 import { isSupportedCountry } from "../../../../../packages/shared/countries";
+import { CATEGORIES } from "../../../../../packages/protocol/runtime.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,12 @@ export async function PATCH(request: Request) {
       throw new ApiError(400, "INVALID_COUNTRY", "Choose a supported country or region.");
     }
     const country = requestedCountry;
+    const preferredCategory = payload.preferredCategory === undefined
+      ? String(current?.preferredCategory ?? "")
+      : cleanText(payload.preferredCategory, 40);
+    if (preferredCategory && !CATEGORIES.some((candidate) => candidate.key === preferredCategory)) {
+      throw new ApiError(400, "INVALID_CATEGORY", "Choose a supported representative category.");
+    }
     const timezone = cleanText(payload.timezone, 60);
     const languages = cleanList(payload.languages, 8, 24);
     const links = cleanList(payload.links, 5, 200).filter((link) => /^https:\/\//i.test(link));
@@ -42,16 +49,16 @@ export async function PATCH(request: Request) {
     if (!current && occupied && !occupied.userId) {
       profileId = occupied.id;
       await d1.prepare(
-        `UPDATE profiles SET user_id = ?, display_name = ?, bio = ?, country = ?, timezone = ?,
+        `UPDATE profiles SET user_id = ?, display_name = ?, bio = ?, country = ?, preferred_category = ?, timezone = ?,
          languages_json = ?, links_json = ?, is_public = ?, updated_at = ? WHERE id = ? AND user_id IS NULL`,
-      ).bind(user.userId, displayName, bio, country, timezone, JSON.stringify(languages), JSON.stringify(links), isPublic ? 1 : 0, now, profileId).run();
+      ).bind(user.userId, displayName, bio, country, preferredCategory, timezone, JSON.stringify(languages), JSON.stringify(links), isPublic ? 1 : 0, now, profileId).run();
       await auditEvent(user.userId, "LEGACY_PROFILE_CLAIMED", "profile", profileId, { handle });
     } else if (!current) {
       profileId = randomId("prf");
       await d1.prepare(
-        `INSERT INTO profiles (id, user_id, handle, display_name, bio, country, timezone, languages_json,
-          links_json, is_public, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).bind(profileId, user.userId, handle, displayName, bio, country, timezone, JSON.stringify(languages), JSON.stringify(links), isPublic ? 1 : 0, now, now).run();
+        `INSERT INTO profiles (id, user_id, handle, display_name, bio, country, preferred_category, timezone, languages_json,
+          links_json, is_public, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(profileId, user.userId, handle, displayName, bio, country, preferredCategory, timezone, JSON.stringify(languages), JSON.stringify(links), isPublic ? 1 : 0, now, now).run();
       await d1.prepare(
         "INSERT INTO profile_handle_history (id, profile_id, previous_handle, new_handle, changed_at) VALUES (?, ?, NULL, ?, ?)",
       ).bind(randomId("phh"), profileId, handle, now).run();
@@ -60,9 +67,9 @@ export async function PATCH(request: Request) {
       profileId = String(current.id);
       const previousHandle = String(current.handle);
       await d1.prepare(
-        `UPDATE profiles SET handle = ?, display_name = ?, bio = ?, country = ?, timezone = ?,
+        `UPDATE profiles SET handle = ?, display_name = ?, bio = ?, country = ?, preferred_category = ?, timezone = ?,
           languages_json = ?, links_json = ?, is_public = ?, updated_at = ? WHERE id = ? AND user_id = ?`,
-      ).bind(handle, displayName, bio, country, timezone, JSON.stringify(languages), JSON.stringify(links), isPublic ? 1 : 0, now, profileId, user.userId).run();
+      ).bind(handle, displayName, bio, country, preferredCategory, timezone, JSON.stringify(languages), JSON.stringify(links), isPublic ? 1 : 0, now, profileId, user.userId).run();
       if (previousHandle !== handle) {
         await d1.prepare(
           "INSERT INTO profile_handle_history (id, profile_id, previous_handle, new_handle, changed_at) VALUES (?, ?, ?, ?, ?)",

@@ -58,6 +58,16 @@ type CountryRanking = {
   topHvRating: number;
 };
 
+type CategoryRanking = {
+  rank: number;
+  category: string;
+  participants: number;
+  averageHvRating: number;
+  averageOvr: number;
+  averageReliability: number;
+  topHvRating: number;
+};
+
 const copy = {
   ko: {
     benchmark: "HIGH-VIVE · AI WITNESS BENCHMARK",
@@ -69,8 +79,16 @@ const copy = {
     overallBoard: "전체 랭킹",
     categoryBoard: "분야별",
     countryBoard: "국가별",
-    countryRank: "국가 랭킹",
-    countryRankHelp: "공식 참가자의 평균 HV Rating으로 국가 순위를 계산합니다.",
+    countryRank: "국가 대항 순위",
+    countryRankHelp: "각 국가 공식 참가자의 평균 HV Rating으로 비교하는 재미용 랭킹입니다.",
+    countryPlayerRank: "국가별 개인 랭킹",
+    countryPlayerRankHelp: "국가를 선택해 해당 국가 바이브코더의 순위를 확인하세요.",
+    viewCountryRank: "국가 순위 보기",
+    categoryRank: "분야 대항 순위",
+    categoryRankHelp: "각 분야 공식 참가자의 평균 HV Rating으로 비교하는 재미용 랭킹입니다.",
+    categoryPlayerRank: "분야별 개인 랭킹",
+    categoryPlayerRankHelp: "분야를 선택해 해당 분야 바이브코더의 순위를 확인하세요.",
+    viewCategoryRank: "분야 순위 보기",
     country: "국가 / 지역",
     countryPlayers: "참가자 수",
     countryAverage: "평균 HV",
@@ -126,8 +144,10 @@ const copy = {
     privacyTitle: "내 데이터 보호",
     personalSettings: "개인 설정",
     settingsTitle: "프로필 설정",
-    settingsLead: "국가 정보는 처음에 접속 위치로 설정되며 언제든 직접 바꿀 수 있습니다. 개인 점수 계산에는 사용되지 않습니다.",
+    settingsLead: "표시할 국가와 리더보드 대표 분야를 언제든 바꿀 수 있습니다. 국가와 분야 선택은 개인 실력 점수를 바꾸지 않습니다.",
     countryHelp: "리더보드와 국가 랭킹에 표시할 국가 또는 지역을 선택하세요.",
+    preferredCategory: "내 대표 분야",
+    preferredCategoryHelp: "분야별 리더보드에서 경쟁할 분야입니다. 원본 AI 평가 분야는 Passport 이력에 그대로 보존됩니다.",
     saveChanges: "변경사항 저장",
     terminalFallback: "앱에서 열리지 않나요?",
     terminalHelp: "아래 명령을 복사해 터미널에 붙여넣으면 같은 평가를 시작할 수 있습니다.",
@@ -155,7 +175,15 @@ const copy = {
     categoryBoard: "Categories",
     countryBoard: "Countries",
     countryRank: "Country standings",
-    countryRankHelp: "Countries are ranked by the mean HV Rating of eligible public players.",
+    countryRankHelp: "A just-for-fun ranking based on each country's mean HV Rating across eligible public players.",
+    countryPlayerRank: "Players by country",
+    countryPlayerRankHelp: "Choose a country to see how its vibe coders rank against one another.",
+    viewCountryRank: "View country standings",
+    categoryRank: "Category standings",
+    categoryRankHelp: "A just-for-fun ranking based on the mean HV Rating of eligible players in each category.",
+    categoryPlayerRank: "Players by category",
+    categoryPlayerRankHelp: "Choose a category to see how its vibe coders rank against one another.",
+    viewCategoryRank: "View category standings",
     country: "Country / region",
     countryPlayers: "Players",
     countryAverage: "Average HV",
@@ -211,8 +239,10 @@ const copy = {
     privacyTitle: "Your data stays yours",
     personalSettings: "Settings",
     settingsTitle: "Profile settings",
-    settingsLead: "Your country is initially suggested from your connection location. You can change it anytime, and it never affects your individual score.",
+    settingsLead: "Change the country shown on your profile and the primary category where you compete. Neither choice changes your individual skill score.",
     countryHelp: "Choose the country or region shown on leaderboards and in country standings.",
+    preferredCategory: "My primary category",
+    preferredCategoryHelp: "This is where you compete on category leaderboards. Your original AI-assessed category remains in Passport history.",
     saveChanges: "Save changes",
     terminalFallback: "App not opening?",
     terminalHelp: "Copy the command below into your terminal to start the same assessment.",
@@ -310,9 +340,12 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   const [boardMode, setBoardMode] = useState<BoardMode>("overall");
   const [category, setCategory] = useState("__all__");
   const [passports, setPassports] = useState<Passport[]>([]);
+  const [participantTotal, setParticipantTotal] = useState(0);
   const [leaderboardVersion, setLeaderboardVersion] = useState(0);
   const [countries, setCountries] = useState<CountryRanking[]>([]);
+  const [categoryStandings, setCategoryStandings] = useState<CategoryRanking[]>([]);
   const [selectedCountry, setSelectedCountry] = useState("");
+  const [standingsView, setStandingsView] = useState<"country" | "category" | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -322,6 +355,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [country, setCountry] = useState("");
+  const [profileCategory, setProfileCategory] = useState("");
   const [profileReady, setProfileReady] = useState(false);
   const [assessmentState, setAssessmentState] = useState<AssessmentState | null>(null);
   const [platform, setPlatform] = useState<Platform>("windows");
@@ -331,6 +365,8 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const t = copy[locale];
+  const categoryFilter = boardMode === "category" && category !== "__all__" ? category : "";
+  const countryFilter = boardMode === "country" ? selectedCountry : "";
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -362,6 +398,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
         setHandle(result.profile.handle);
         setDisplayName(result.profile.displayName);
         setCountry(result.profile.country || result.suggestedCountry || "");
+        setProfileCategory(result.profile.preferredCategory || "");
         setProfileReady(true);
       } else {
         setCountry(result.suggestedCountry || "");
@@ -381,13 +418,18 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/v1/leaderboards?pageSize=100", { headers: { "x-high-vive-locale": locale } })
+    const params = new URLSearchParams({ pageSize: "100", v: String(leaderboardVersion) });
+    if (categoryFilter) params.set("category", categoryFilter);
+    if (countryFilter) params.set("country", countryFilter);
+    fetch(`/api/v1/leaderboards?${params}`, { headers: { "x-high-vive-locale": locale } })
       .then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result?.error?.message || "Leaderboard unavailable");
         if (active) {
           setPassports(result.passports || []);
+          setParticipantTotal(Number(result.pagination?.total || 0));
           setCountries(result.countries || []);
+          setCategoryStandings(result.categoryStandings || []);
           setSelectedCountry((current) => result.countries?.some((item: CountryRanking) => item.country === current) ? current : result.countries?.[0]?.country || "");
           setSelectedId((current) => result.passports?.some((item: Passport) => item.id === current) ? current : result.passports?.[0]?.id || "");
         }
@@ -395,7 +437,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
       .catch((error) => active && setMessage(error instanceof Error ? error.message : String(error)))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [locale, assessmentState?.passport?.status, leaderboardVersion]);
+  }, [locale, assessmentState?.passport?.status, leaderboardVersion, categoryFilter, countryFilter]);
 
   useEffect(() => {
     const viewerId = viewer?.id;
@@ -414,6 +456,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
           setHandle(result.profile.handle);
           setDisplayName(result.profile.displayName);
           setCountry(result.profile.country || result.suggestedCountry || "");
+          setProfileCategory(result.profile.preferredCategory || "");
           setProfileReady(true);
         }
         setAssessmentState(result.latestAssessment || null);
@@ -426,21 +469,24 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
     return () => { active = false; window.clearInterval(timer); };
   }, [composerOpen, locale, t.signIn, viewer?.id]);
 
-  const visible = useMemo(
-    () => boardMode === "category" ? passports.filter((passport) => passport.category === category) : passports,
-    [boardMode, category, passports],
-  );
-  const selected = passports.find((passport) => passport.id === selectedId) || visible[0] || passports[0] || null;
-  const selectedNation = countries.find((item) => item.country === selectedCountry) || countries[0] || null;
-  const selectedNationPlayers = selectedNation ? passports.filter((passport) => passport.country === selectedNation.country) : [];
+  const visible = useMemo(() => {
+    if (boardMode === "category") return passports.filter((passport) => passport.category === category);
+    if (boardMode === "country") return passports.filter((passport) => passport.country === selectedCountry);
+    return passports;
+  }, [boardMode, category, passports, selectedCountry]);
+  const selected = visible.find((passport) => passport.id === selectedId) || visible[0] || null;
   const topThree = visible.slice(0, 3);
   const podium = [topThree[1], topThree[0], topThree[2]].filter(Boolean) as Passport[];
-  const countryTopThree = countries.slice(0, 3);
-  const countryPodium = [countryTopThree[1], countryTopThree[0], countryTopThree[2]].filter(Boolean) as CountryRanking[];
   const countryOptions = useMemo(
     () => [...COUNTRY_CODES].sort((a, b) => countryLabel(a, locale).localeCompare(countryLabel(b, locale), locale === "ko" ? "ko" : "en")),
     [locale],
   );
+  const standingsRows = standingsView === "country"
+    ? countries.map((item) => ({ ...item, key: item.country, label: countryLabel(item.country, locale).replace(/^\S+\s/, ""), icon: countryFlag(item.country) }))
+    : standingsView === "category"
+      ? categoryStandings.map((item) => ({ ...item, key: item.category, label: categoryLabel(item.category, locale), icon: categoryLabel(item.category, locale).slice(0, 2).toUpperCase() }))
+      : [];
+  const medalStandings = [standingsRows[1], standingsRows[0], standingsRows[2]].filter(Boolean);
   const terminalCommand = platform === "windows"
     ? `powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:HIGH_VIVE_SERVER='${serverOrigin}'; $env:HIGH_VIVE_AGENT='${witnessTool}'; irm https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.ps1 | iex"`
     : `curl -fsSL https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.sh | HIGH_VIVE_SERVER='${serverOrigin}' HIGH_VIVE_AGENT='${witnessTool}' bash`;
@@ -500,6 +546,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
       setHandle(result.profile.handle);
       setDisplayName(result.profile.displayName);
       setCountry(result.profile.country || country);
+      setProfileCategory(result.profile.preferredCategory || "");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally { setBusy(false); }
@@ -513,11 +560,12 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
       const response = await fetch("/api/v1/me/profile", {
         method: "PATCH",
         headers: { "content-type": "application/json", "x-high-vive-locale": locale },
-        body: JSON.stringify({ handle, displayName, country, isPublic: true }),
+        body: JSON.stringify({ handle, displayName, country, preferredCategory: profileCategory, isPublic: true }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result?.error?.message || "Profile update failed");
       setCountry(result.profile.country || "");
+      setProfileCategory(result.profile.preferredCategory || "");
       setSettingsOpen(false);
       setLeaderboardVersion((value) => value + 1);
       await refreshViewer();
@@ -553,7 +601,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
             <div className="league-titlebar">
               <div><p className="season-kicker">{t.benchmark}</p><h1 id="leaderboard-title">{t.title}</h1><p className="leaderboard-subtitle">{t.subtitle}</p></div>
               <dl className="season-meta">
-                <div><dt>{t.participants}</dt><dd>{passports.length}</dd></div>
+                <div><dt>{t.participants}</dt><dd>{participantTotal}</dd></div>
                 <div><dt>{t.rankBasis}</dt><dd>HV</dd></div>
               </dl>
             </div>
@@ -564,37 +612,22 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
               <button type="button" role="tab" aria-selected={boardMode === "country"} className={boardMode === "country" ? "is-active" : ""} onClick={() => switchBoard("country")}>{t.countryBoard}</button>
             </div>
 
-            {boardMode === "category" ? <div className="field-tabs" aria-label="Category filter">
-              {CATEGORIES.map((item) => <button key={item.key} className={category === item.key ? "is-active" : ""} onClick={() => setCategory(item.key)}>{item[locale]}</button>)}
-            </div> : null}
-            {boardMode === "country" ? <div className="country-board-intro"><div><strong>{t.countryRank}</strong><p>{t.countryRankHelp}</p></div><span>{countries.length} {locale === "ko" ? "개 국가" : "countries"}</span></div> : null}
+            {boardMode === "category" ? <>
+              <div className="country-board-intro"><div><strong>{t.categoryPlayerRank}</strong><p>{t.categoryPlayerRankHelp}</p></div><button className="button button-outline" type="button" onClick={() => setStandingsView("category")}>{t.viewCategoryRank}</button></div>
+              <div className="field-tabs aggregate-filter-tabs" aria-label="Category filter">{CATEGORIES.map((item) => <button key={item.key} className={category === item.key ? "is-active" : ""} onClick={() => setCategory(item.key)}>{item[locale]}</button>)}</div>
+            </> : null}
+            {boardMode === "country" ? <>
+              <div className="country-board-intro"><div><strong>{t.countryPlayerRank}</strong><p>{t.countryPlayerRankHelp}</p></div><button className="button button-outline" type="button" onClick={() => setStandingsView("country")}>{t.viewCountryRank}</button></div>
+              <div className="field-tabs aggregate-filter-tabs" aria-label={locale === "ko" ? "국가 선택" : "Country filter"}>{countries.map((nation) => <button key={nation.country} className={selectedCountry === nation.country ? "is-active" : ""} onClick={() => setSelectedCountry(nation.country)}>{countryFlag(nation.country)} {countryLabel(nation.country, locale).replace(/^\S+\s/, "")}</button>)}</div>
+            </> : null}
 
-            {!loading && (boardMode === "country" ? countries.length === 0 : visible.length === 0) ? (
+            {!loading && visible.length === 0 ? (
               <div className="leaderboard-empty">
                 <span>{t.official} · HV / 000</span><h2>{t.emptyOfficial}</h2><p>{t.emptyBody}</p>
                 <button className="button button-primary" onClick={openComposer}>{t.register}</button>
               </div>
             ) : null}
 
-            {boardMode === "country" ? <>
-              {countryPodium.length ? <div className="podium-grid country-podium" aria-label="Top countries">
-                {countryPodium.map((nation) => {
-                  const rank = countries.findIndex((item) => item.country === nation.country) + 1;
-                  return <button key={nation.country} className={`player-card nation-card rank-${rank} ${nation.country === selectedNation?.country ? "is-selected" : ""}`} onClick={() => setSelectedCountry(nation.country)}>
-                    <span className="card-rank">#{rank}</span><span className="card-overall">{nation.averageHvRating.toFixed(1)}</span><span className="card-position">{t.countryAverage}</span>
-                    <span className="card-avatar nation-flag">{countryFlag(nation.country)}</span><span className="card-name">{countryLabel(nation.country, locale).replace(/^\S+\s/, "")}</span>
-                    <span className="card-field">{nation.country}</span><span className="card-tier">{nation.participants} {t.countryPlayers}</span>
-                    <span className="card-elo">OVR {nation.averageOvr.toFixed(1)} · TOP {nation.topHvRating}</span>
-                  </button>;
-                })}
-              </div> : null}
-              {countries.length ? <div className="ranking-table-shell country-ranking-shell">
-                <div className="country-table-head"><span>{t.rank}</span><span>{t.country}</span><span>{t.countryAverage}</span><span>{t.countryPlayers}</span><span>{t.ovr}</span><span>{t.countryTop}</span></div>
-                <ol className="country-ranking-table">{countries.map((nation, index) => <li key={nation.country} className={nation.country === selectedNation?.country ? "is-selected" : ""}>
-                  <button type="button" onClick={() => setSelectedCountry(nation.country)}><strong>{String(index + 1).padStart(2, "0")}</strong><span className="country-name"><b>{countryFlag(nation.country)}</b><span>{countryLabel(nation.country, locale).replace(/^\S+\s/, "")}<small>{nation.country}</small></span></span><em>{nation.averageHvRating.toFixed(1)}</em><span>{nation.participants}</span><span>{nation.averageOvr.toFixed(1)}</span><span>{nation.topHvRating}</span></button>
-                </li>)}</ol>
-              </div> : null}
-            </> : <>
             {podium.length ? <div className="podium-grid" aria-label="Top three">
               {podium.map((passport) => {
                 const rank = visible.findIndex((item) => item.id === passport.id) + 1;
@@ -622,18 +655,10 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
                 </button>
               </li>)}</ol>
             </div> : null}
-            </>}
           </div>
 
           <aside className="scout-panel" aria-label="Passport details">
-            {boardMode === "country" ? selectedNation ? <div className="nation-scout">
-              <div className="scout-status"><span>{t.countryRank}</span><b>#{selectedNation.rank}</b></div>
-              <div className="nation-scout-hero"><span>{countryFlag(selectedNation.country)}</span><div><small>{selectedNation.country}</small><h2>{countryLabel(selectedNation.country, locale).replace(/^\S+\s/, "")}</h2></div></div>
-              <div className="nation-rating"><strong>{selectedNation.averageHvRating.toFixed(1)}</strong><span>{t.countryAverage}</span></div>
-              <dl className="nation-stats"><div><dt>{t.countryPlayers}</dt><dd>{selectedNation.participants}</dd></div><div><dt>{t.ovr}</dt><dd>{selectedNation.averageOvr.toFixed(1)}</dd></div><div><dt>{t.reliability}</dt><dd>{selectedNation.averageReliability.toFixed(1)}</dd></div><div><dt>{t.countryTop}</dt><dd>{selectedNation.topHvRating}</dd></div></dl>
-              <section className="nation-players"><h3>{locale === "ko" ? "대표 참가자" : "Top players"}</h3>{selectedNationPlayers.slice(0, 5).map((passport, index) => <a href={`/u/${passport.handle}`} key={passport.id}><span>{index + 1}</span><b>{passport.displayName}</b><strong>{passport.hvRating}</strong></a>)}</section>
-              <p className="scout-disclaimer">{t.countryRankHelp} {locale === "ko" ? "참가자 수가 적은 국가는 평균이 크게 변할 수 있습니다." : "A country's average can move sharply while its participant count is small."}</p>
-            </div> : <div className="scout-empty"><span>HV</span><p>{t.noSelection}</p></div> : selected ? <>
+            {selected ? <>
               <div className="scout-status"><span>AI WITNESS PASSPORT</span><b className={evidenceClass(selected.evidenceLevel)}>● {selected.evidenceLabel}</b></div>
               <div className="scout-identity"><div className="scout-avatar">{selected.handle.slice(0, 2).toUpperCase()}</div><div><span>{categoryLabel(selected.category, locale)}</span><h2>{selected.displayName}</h2><p>@{selected.handle} · {countryLabel(selected.country, locale) || (locale === "ko" ? "국가 미설정" : "Country not set")} · {selected.protocolVersion}</p></div><div className="scout-overall"><strong>{selected.hvRating}</strong><span>HV RATING</span></div></div>
               <div className="scout-badges"><strong>{t.reliability} {selected.reliabilityScore.toFixed(1)}</strong><span className={`evidence-badge ${evidenceClass(selected.evidenceLevel)}`}>{selected.evidenceLevel} · {selected.evidenceLabel}</span><ToolBadges tools={selected.evaluator.tools} /></div>
@@ -656,6 +681,11 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
       </main>
 
       <footer className="site-footer"><p><strong>{t.transparency}</strong> {t.transparencyBody}</p></footer>
+
+      {standingsView ? <div className="modal-backdrop"><section className="passport-modal standings-modal" role="dialog" aria-modal="true" aria-labelledby="standings-title">
+        <div className="modal-heading"><div><p className="eyebrow">HIGH-VIVE FUN LEAGUE</p><h2 id="standings-title">{standingsView === "country" ? t.countryRank : t.categoryRank}</h2><p>{standingsView === "country" ? t.countryRankHelp : t.categoryRankHelp}</p></div><button className="modal-close" aria-label={t.close} onClick={() => setStandingsView(null)}>×</button></div>
+        {standingsRows.length ? <><div className="medal-standings">{medalStandings.map((item) => <article className={`medal-card medal-rank-${item.rank}`} key={item.key}><span>{item.rank === 1 ? "🥇" : item.rank === 2 ? "🥈" : "🥉"}</span><b>{item.icon}</b><h3>{item.label}</h3><strong>{item.averageHvRating.toFixed(1)}</strong><small>{item.participants} {t.countryPlayers}</small></article>)}</div><ol className="standings-list">{standingsRows.map((item) => <li key={item.key}><b>{String(item.rank).padStart(2, "0")}</b><span>{item.icon}</span><strong>{item.label}</strong><em>{item.averageHvRating.toFixed(1)}</em><small>{item.participants} {t.countryPlayers} · TOP {item.topHvRating}</small></li>)}</ol></> : <div className="leaderboard-empty"><h2>{t.emptyOfficial}</h2></div>}
+      </section></div> : null}
 
       {composerOpen ? <div className="modal-backdrop"><section className="passport-modal onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="composer-title">
         <div className="modal-heading"><div><p className="eyebrow">{t.register}</p><h2 id="composer-title">{t.modalTitle}</h2><p>{t.modalLead}</p></div><button className="modal-close" aria-label={t.close} onClick={() => setComposerOpen(false)}>×</button></div>
@@ -684,7 +714,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
       </section></div> : null}
       {settingsOpen && viewer ? <div className="modal-backdrop"><section className="passport-modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <div className="modal-heading"><div><p className="eyebrow">@{handle}</p><h2 id="settings-title">{t.settingsTitle}</h2><p>{t.settingsLead}</p></div><button className="modal-close" aria-label={t.close} onClick={() => setSettingsOpen(false)}>×</button></div>
-        <form onSubmit={saveSettings}><label><span>{t.country}</span><select value={country} onChange={(event) => setCountry(event.target.value)} required><option value="">{locale === "ko" ? "국가 또는 지역 선택" : "Choose a country or region"}</option>{countryOptions.map((code) => <option value={code} key={code}>{countryLabel(code, locale)}</option>)}</select><small>{t.countryHelp}</small></label><div className="settings-actions"><button className="button button-primary" disabled={busy}>{t.saveChanges}</button><button className="button button-quiet" type="button" onClick={signOut}>{t.signOut}</button></div></form>
+        <form onSubmit={saveSettings}><label><span>{t.country}</span><select value={country} onChange={(event) => setCountry(event.target.value)} required><option value="">{locale === "ko" ? "국가 또는 지역 선택" : "Choose a country or region"}</option>{countryOptions.map((code) => <option value={code} key={code}>{countryLabel(code, locale)}</option>)}</select><small>{t.countryHelp}</small></label><label><span>{t.preferredCategory}</span><select value={profileCategory} onChange={(event) => setProfileCategory(event.target.value)}><option value="">{locale === "ko" ? "AI 평가 분야 사용" : "Use my AI-assessed category"}</option>{CATEGORIES.map((item) => <option value={item.key} key={item.key}>{item[locale]}</option>)}</select><small>{t.preferredCategoryHelp}</small></label><div className="settings-actions"><button className="button button-primary" disabled={busy}>{t.saveChanges}</button><button className="button button-quiet" type="button" onClick={signOut}>{t.signOut}</button></div></form>
         {message ? <p className="form-message" role="status">{message}</p> : null}
       </section></div> : null}
     </div>

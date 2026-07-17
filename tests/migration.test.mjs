@@ -25,3 +25,12 @@ test("submitted official Passports are migrated to automatic publication", async
   assert.match(migration, /reliability_score` >= 60/);
   assert.match(migration, /current_passport_id/);
 });
+
+test("profile category and throttled rating refresh have deploy-time schema", async () => {
+  const migration = await readFile(new URL("../drizzle/0005_lovely_iceman.sql", import.meta.url), "utf8");
+  assert.match(migration, /preferred_category/);
+  assert.match(migration, /league_refresh_state/);
+  assert.match(migration, /1970-01-01T00:00:00\.000Z/);
+  assert.doesNotMatch(migration, /CREATE TABLE `browser_sessions`/);
+  assert.doesNotMatch(migration, /CREATE TABLE `passkey_credentials`/);
+});

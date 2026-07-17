@@ -86,7 +86,7 @@ OVR and Reliability remain visible as separate source values, while HV Rating co
 
 A successfully published Passport starts a seven-day reassessment cooldown. Failed, expired, or cancelled attempts do not consume it. Reassessments create a new append-only Passport version; older versions remain in profile history while only the latest version competes on leaderboards.
 
-The home page also includes category leaderboards and country standings. Country standings rank nations by the mean HV Rating of their eligible public participants and always show participant counts.
+The home page includes individual leaderboards by category and by country. Optional pop-up standings compare categories or countries by the mean HV Rating of eligible public participants and always show participant counts. Signed-in players can change their displayed country and primary competition category in Profile settings without changing their skill score; the original AI-assessed category remains in Passport history.
 
 ## Privacy by Default
 

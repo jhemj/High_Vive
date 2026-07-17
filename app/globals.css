@@ -420,7 +420,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin: -8px 0 30px;
+  margin: -8px 0 12px;
   padding: 16px 18px;
   border: 1px solid var(--line);
   background: rgba(9, 21, 33, 0.82);
@@ -429,6 +429,8 @@ a {
 .country-board-intro strong { font-family: var(--font-display); font-size: 19px; }
 .country-board-intro p { margin: 5px 0 0; color: #7890a3; font-size: 10px; }
 .country-board-intro > span { color: var(--lime); font-family: var(--font-mono); font-size: 9px; white-space: nowrap; }
+
+.country-board-intro .button { flex: 0 0 auto; }
 
 .field-tabs {
   display: flex;
@@ -607,6 +609,60 @@ a {
   font-size: 21px;
   font-weight: 900;
 }
+
+.aggregate-filter-tabs { margin: 0 0 30px; }
+
+.standings-modal { width: min(900px, 100%); }
+
+.medal-standings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  padding: 28px 28px 18px;
+}
+
+.medal-card {
+  display: grid;
+  min-height: 190px;
+  place-items: center;
+  align-content: center;
+  padding: 20px 12px;
+  border: 1px solid #33495d;
+  background: linear-gradient(160deg, rgba(94, 129, 158, 0.18), #091521 72%);
+  text-align: center;
+}
+
+.medal-card > span { font-size: 28px; }
+.medal-card > b { margin-top: 8px; color: var(--cream); font-family: var(--font-display); font-size: 26px; }
+.medal-card h3 { margin: 8px 0 0; font-family: var(--font-display); font-size: 17px; }
+.medal-card strong { margin-top: 8px; color: var(--lime); font-family: var(--font-display); font-size: 28px; }
+.medal-card small { margin-top: 4px; color: #8298aa; font-family: var(--font-mono); font-size: 7px; }
+.medal-rank-1 { min-height: 226px; border-color: #efd05f; box-shadow: inset 0 3px 0 #efd05f; background: linear-gradient(160deg, rgba(239, 208, 95, 0.24), #101822 72%); }
+.medal-rank-2 { min-height: 206px; border-color: #b7c8d6; box-shadow: inset 0 3px 0 #b7c8d6; }
+.medal-rank-3 { border-color: #c48761; box-shadow: inset 0 3px 0 #c48761; }
+
+.standings-list {
+  margin: 0;
+  padding: 0 28px 30px;
+  list-style: none;
+}
+
+.standings-list li {
+  display: grid;
+  grid-template-columns: 34px 34px minmax(120px, 1fr) 80px minmax(150px, auto);
+  gap: 10px;
+  align-items: center;
+  min-height: 50px;
+  padding: 0 12px;
+  border-top: 1px solid var(--line);
+}
+
+.standings-list li > b { color: #71879a; font-family: var(--font-mono); font-size: 9px; }
+.standings-list li > span { font-size: 18px; text-align: center; }
+.standings-list li > strong { font-size: 11px; }
+.standings-list li > em { color: var(--lime); font-family: var(--font-display); font-size: 20px; font-style: normal; font-weight: 900; text-align: right; }
+.standings-list li > small { color: #7890a3; font-family: var(--font-mono); font-size: 7px; text-align: right; }
 
 .card-country {
   margin-top: 5px;
@@ -2670,6 +2726,11 @@ a {
     flex-direction: column;
   }
 
+  .country-board-intro .button { width: 100%; }
+
+  .standings-list li { grid-template-columns: 28px 28px minmax(110px, 1fr) 64px; }
+  .standings-list li > small { display: none; }
+
   .scout-panel {
     padding: 28px 20px;
   }
@@ -2843,6 +2904,12 @@ a {
     padding: 0 10px;
     font-size: 10px;
   }
+
+  .medal-standings { grid-template-columns: 1fr; padding: 20px 16px 12px; }
+  .medal-card,
+  .medal-rank-1,
+  .medal-rank-2 { min-height: 150px; }
+  .standings-list { padding-right: 16px; padding-left: 16px; }
 
   .locale-switch button {
     min-width: 30px;

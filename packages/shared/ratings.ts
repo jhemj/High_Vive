@@ -13,6 +13,8 @@ type RatingRow = {
   publishedAt: string;
 };
 
+const RATING_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
 export function cohortPositions(rows: Array<{ id: string; ovr: number }>) {
   const sorted = [...rows].sort((a, b) => a.ovr - b.ovr || a.id.localeCompare(b.id));
   const positions = new Map<string, number>();
@@ -30,8 +32,17 @@ export function cohortPositions(rows: Array<{ id: string; ovr: number }>) {
   return positions;
 }
 
-export async function refreshLeagueRatings() {
+export async function refreshLeagueRatings({ force = false }: { force?: boolean } = {}) {
   const d1 = getD1();
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  if (!force) {
+    const cutoff = new Date(now - RATING_REFRESH_INTERVAL_MS).toISOString();
+    const claim = await d1.prepare(
+      "UPDATE league_refresh_state SET refreshed_at = ? WHERE id = 'global' AND refreshed_at < ?",
+    ).bind(nowIso, cutoff).run();
+    if (Number(claim.meta?.changes ?? 0) === 0) return;
+  }
   const result = await d1.prepare(
     `SELECT pv.id, pv.ovr, pv.reliability_score AS reliabilityScore,
       pv.hv_rating AS hvRating, pv.tier, pv.tier_division AS tierDivision,
@@ -42,7 +53,6 @@ export async function refreshLeagueRatings() {
        AND pv.evidence_level IN ('E2','E3','E4','E5')
        AND pv.protocol_version = ? AND pv.is_demo = 0`,
   ).bind(PROTOCOL_VERSION).all<RatingRow>();
-  const now = Date.now();
   const rows = (result.results ?? []).map((row) => ({
     ...row,
     ovr: Number(row.ovr),
@@ -60,4 +70,7 @@ export async function refreshLeagueRatings() {
       .bind(hvRating, tier, tierDivision, row.id)];
   });
   for (let index = 0; index < updates.length; index += 50) await d1.batch(updates.slice(index, index + 50));
+  if (force) {
+    await d1.prepare("UPDATE league_refresh_state SET refreshed_at = ? WHERE id = 'global'").bind(nowIso).run();
+  }
 }

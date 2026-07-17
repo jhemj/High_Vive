@@ -295,7 +295,8 @@ export async function enforceRateLimit(request: Request, route: string, limit: n
 
 export async function findProfileByUser(userId: string) {
   return getD1().prepare(
-    `SELECT id, user_id AS userId, handle, display_name AS displayName, bio, country, timezone,
+    `SELECT id, user_id AS userId, handle, display_name AS displayName, bio, country,
+      preferred_category AS preferredCategory, timezone,
       languages_json AS languagesJson, links_json AS linksJson, is_public AS isPublic,
       current_passport_id AS currentPassportId, created_at AS createdAt, updated_at AS updatedAt
      FROM profiles WHERE user_id = ? LIMIT 1`,

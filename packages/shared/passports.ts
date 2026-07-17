@@ -17,6 +17,7 @@ export function serializePassportRow(row: Record<string, unknown>) {
     country: String(row.country ?? ""),
     timezone: String(row.timezone ?? ""),
     category: String(row.category),
+    assessedCategory: String(row.assessedCategory ?? row.category),
     subfields: parseJson(row.subfieldsJson, []),
     summary: parseJson(row.summaryJson, { ko: "", en: "" }),
     strengths: parseJson(row.strengthsJson, { ko: [], en: [] }),
@@ -46,7 +47,8 @@ export function serializePassportRow(row: Record<string, unknown>) {
 
 export const passportSelectSql = `
   SELECT pv.id, pv.profile_id AS profileId, pv.assessment_id AS assessmentId,
-    pv.status, pv.category, pv.subfields_json AS subfieldsJson, pv.summary_json AS summaryJson,
+    pv.status, COALESCE(NULLIF(p.preferred_category, ''), pv.category) AS category,
+    pv.category AS assessedCategory, pv.subfields_json AS subfieldsJson, pv.summary_json AS summaryJson,
     pv.strengths_json AS strengthsJson, pv.weaknesses_json AS weaknessesJson,
     pv.raw_scores_json AS rawScoresJson, pv.calibrated_scores_json AS calibratedScoresJson,
     pv.ovr, pv.hv_rating AS hvRating, pv.tier, pv.tier_division AS tierDivision,

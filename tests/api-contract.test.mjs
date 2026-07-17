@@ -41,6 +41,11 @@ test("leaderboard ranks in D1, not after a 50-row memory slice", async () => {
   assert.match(source, /effectiveReliability/);
   assert.match(source, /AVG\(pv\.hv_rating\)/);
   assert.match(source, /GROUP BY p\.country/);
+  assert.match(source, /categoryStandings/);
+  assert.match(source, /preferred_category/);
+  assert.match(source, /Promise\.all/);
+  assert.match(source, /s-maxage=60/);
+  assert.match(source, /countryFilter|country/);
 });
 
 test("weekly reassessment limit is consumed only by a published Passport", async () => {
@@ -57,6 +62,9 @@ test("weekly reassessment limit is consumed only by a published Passport", async
   assert.match(ratings, /cohortPositions/);
   assert.match(ratings, /calculateEffectiveReliability/);
   assert.match(ratings, /calculateHvRating/);
+  assert.match(ratings, /RATING_REFRESH_INTERVAL_MS/);
+  assert.match(ratings, /league_refresh_state/);
+  assert.match(submitRoute, /refreshLeagueRatings\(\{ force: true \}\)/);
 });
 
 test("country defaults come from the connection and remain user-editable", async () => {
@@ -69,8 +77,12 @@ test("country defaults come from the connection and remain user-editable", async
   assert.match(server, /countryFromRequest/);
   assert.match(meRoute, /suggestedCountry/);
   assert.match(profileRoute, /isSupportedCountry/);
+  assert.match(profileRoute, /preferredCategory/);
+  assert.match(profileRoute, /INVALID_CATEGORY/);
   assert.match(ui, /settingsOpen/);
   assert.match(ui, /saveSettings/);
+  assert.match(ui, /viewCategoryRank/);
+  assert.match(ui, /standingsView/);
   assert.doesNotMatch(ui, /onSubmit=\{saveProfile\}[\s\S]{0,600}COUNTRY_CODES/);
 });
 

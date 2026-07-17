@@ -102,6 +102,7 @@ export const profiles = sqliteTable("profiles", {
   displayName: text("display_name").notNull(),
   bio: text("bio").notNull().default(""),
   country: text("country").notNull().default(""),
+  preferredCategory: text("preferred_category").notNull().default(""),
   timezone: text("timezone").notNull().default(""),
   languagesJson: text("languages_json").notNull().default("[]"),
   linksJson: text("links_json").notNull().default("[]"),
@@ -112,6 +113,7 @@ export const profiles = sqliteTable("profiles", {
 }, (table) => [
   uniqueIndex("profiles_user_uq").on(table.userId),
   index("profiles_public_idx").on(table.isPublic),
+  index("profiles_preferred_category_idx").on(table.preferredCategory),
 ]);
 
 export const profileHandleHistory = sqliteTable("profile_handle_history", {
@@ -268,4 +270,9 @@ export const rateLimitBuckets = sqliteTable("rate_limit_buckets", {
   count: integer("count").notNull(),
   resetAt: text("reset_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+export const leagueRefreshState = sqliteTable("league_refresh_state", {
+  id: text("id").primaryKey(),
+  refreshedAt: text("refreshed_at").notNull(),
 });

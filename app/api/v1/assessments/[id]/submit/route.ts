@@ -191,7 +191,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (String(error).toLowerCase().includes("unique")) throw new ApiError(409, "SUBMISSION_REPLAY", "This assessment or manifest has already been submitted.");
       throw error;
     }
-    await refreshLeagueRatings();
+    await refreshLeagueRatings({ force: true });
     const finalRating = await d1.prepare("SELECT hv_rating AS hvRating, tier, tier_division AS tierDivision FROM passport_versions WHERE id = ? LIMIT 1")
       .bind(passportId).first<{ hvRating: number; tier: string; tierDivision: string | null }>();
     const hvRating = Number(finalRating?.hvRating ?? initialHvRating);
