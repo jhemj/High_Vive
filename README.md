@@ -25,8 +25,10 @@ nickname-based upserts and official raw-JSON submission are disabled.
 
 Open **Create my Passport** on the live site. The browser detects Windows,
 macOS, or Ubuntu and selects the matching path. Windows and macOS users can
-start the guided Codex workflow in the Codex app; every platform can choose
-Codex or Claude Code and use a one-line installer that prepares the CLI.
+start the guided Codex workflow in the Codex app. Claude Desktop users on
+Windows, macOS, and Linux can launch a prefilled Claude Code session through
+the official `claude://code/new` deep link. Every platform can also use a
+one-line installer that prepares the CLI.
 
 Windows PowerShell:
 

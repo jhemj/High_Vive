@@ -28,6 +28,8 @@ test("renders the public official HV Rating leaderboard contract", async () => {
   assert.match(app, /macOS/);
   assert.match(app, /Ubuntu/);
   assert.match(app, /codex:\/\/new/);
+  assert.match(app, /claude:\/\/code\/new\?q=/);
+  assert.match(app, /Claude Code 앱에서 바로 시작|Start in the Claude Code app/);
   assert.match(app, /install-high-vive\.ps1/);
   assert.match(app, /install-high-vive\.sh/);
   assert.doesNotMatch(app, /assessment\.command|assessment\.uploadToken/);

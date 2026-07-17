@@ -97,6 +97,8 @@ const copy = {
     changeEnvironment: "환경 직접 선택",
     codexStart: "Codex 앱에서 바로 시작",
     codexStartHelp: "Codex가 설치·스캔·평가 준비를 순서대로 진행합니다.",
+    claudeStart: "Claude Code 앱에서 바로 시작",
+    claudeStartHelp: "Claude Desktop의 Code 세션에 High-Vive 평가 지시를 바로 채웁니다.",
     terminalFallback: "터미널로 시작",
     terminalHelp: "Node.js가 없어도 설치 스크립트가 필요한 환경을 준비합니다.",
     copyCommand: "한 줄 명령 복사",
@@ -160,6 +162,8 @@ const copy = {
     changeEnvironment: "Choose another environment",
     codexStart: "Start in the Codex app",
     codexStartHelp: "Codex guides setup, scanning, and assessment preparation.",
+    claudeStart: "Start in the Claude Code app",
+    claudeStartHelp: "Opens a Claude Desktop Code session with the High-Vive assessment instructions prefilled.",
     terminalFallback: "Start from a terminal",
     terminalHelp: "The installer prepares the required runtime even when Node.js is missing.",
     copyCommand: "Copy one-line command",
@@ -314,6 +318,10 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
     ? `High-Vive Passport 평가를 시작해줘. jhemj/High_Vive 저장소를 열거나 내려받고 의존성을 준비한 뒤, pnpm high-vive -- prepare --server ${serverOrigin} --agent codex 를 실행해. 생성된 .high-vive/assessment-instructions.md를 읽고 정직한 passport-draft.json을 작성해. 공개 preview를 짧게 보여준 다음 pnpm high-vive -- submit을 바로 실행해. 원문 transcript와 private-evidence.json은 절대 업로드하지 마.`
     : `Start my High-Vive Passport assessment. Open or download jhemj/High_Vive, prepare its dependencies, then run pnpm high-vive -- prepare --server ${serverOrigin} --agent codex. Read .high-vive/assessment-instructions.md and write an honest passport-draft.json. Show a short public preview, then run pnpm high-vive -- submit immediately. Never upload raw transcripts or private-evidence.json.`;
   const codexDeepLink = `codex://new?originUrl=${encodeURIComponent("https://github.com/jhemj/High_Vive.git")}&prompt=${encodeURIComponent(codexPrompt)}`;
+  const claudePrompt = locale === "ko"
+    ? `High-Vive Passport 평가를 시작해줘. 안전한 로컬 작업 폴더에서 jhemj/High_Vive 저장소를 열거나 내려받고 의존성을 준비한 뒤, pnpm high-vive -- prepare --server ${serverOrigin} --agent claude-code 를 실행해. 생성된 .high-vive/assessment-instructions.md를 읽고 정직한 passport-draft.json을 작성해. 공개 preview를 짧게 보여준 다음 pnpm high-vive -- submit을 바로 실행해. 원문 transcript와 private-evidence.json은 절대 업로드하지 마.`
+    : `Start my High-Vive Passport assessment. In a safe local workspace, open or download jhemj/High_Vive, prepare its dependencies, then run pnpm high-vive -- prepare --server ${serverOrigin} --agent claude-code. Read .high-vive/assessment-instructions.md and write an honest passport-draft.json. Show a short public preview, then run pnpm high-vive -- submit immediately. Never upload raw transcripts or private-evidence.json.`;
+  const claudeDeepLink = `claude://code/new?q=${encodeURIComponent(claudePrompt)}`;
 
   function switchLocale(next: Locale) {
     setLocale(next);
@@ -450,6 +458,8 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
             <div className="platform-switch" role="tablist" aria-label={t.changeEnvironment}>{(["windows", "macos", "ubuntu"] as Platform[]).map((item) => <button key={item} type="button" role="tab" aria-selected={platform === item} className={platform === item ? "is-active" : ""} onClick={() => setPlatform(item)}>{platformLabels[item]}</button>)}</div>
             {witnessTool === "codex" && platform !== "ubuntu" && profileReady ? <a className="button button-primary codex-launch" href={codexDeepLink}>{t.codexStart}</a> : null}
             {witnessTool === "codex" && platform !== "ubuntu" ? <small className="launch-help">{t.codexStartHelp}</small> : null}
+            {witnessTool === "claude-code" && profileReady ? <a className="button button-primary codex-launch" href={claudeDeepLink}>{t.claudeStart}</a> : null}
+            {witnessTool === "claude-code" ? <small className="launch-help">{t.claudeStartHelp}</small> : null}
             <div className="terminal-option"><b>{t.terminalFallback}</b><small>{t.terminalHelp}</small><pre className="cli-command">{terminalCommand}</pre><button className="button button-outline" type="button" disabled={!profileReady} onClick={copyCommand}>{copied ? t.copied : t.copyCommand}</button></div>
             <p className="assessment-live"><b>{t.assessmentStatus}</b><span>{assessmentState?.assessment?.status || t.waiting}</span><small>{assessmentState?.commitment ? `${assessmentState.commitment.sessionCount} sessions · ${assessmentState.commitment.activeDays} active days` : t.waiting}</small></p>
           </section>
