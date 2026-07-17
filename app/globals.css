@@ -2072,6 +2072,17 @@ a {
   font-size: 9px;
 }
 
+.onboarding-steps label > span {
+  color: #b8c7d2;
+  font-weight: 800;
+}
+
+.onboarding-steps label > small {
+  color: #708799;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
 .onboarding-steps input,
 .connect-page input {
   min-height: 44px;
@@ -2154,6 +2165,24 @@ a {
   color: #8296a7;
   font-size: 8px;
   line-height: 1.5;
+}
+
+.assessment-notice {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 210, 84, 0.38);
+  background: rgba(255, 210, 84, 0.07);
+  color: #c8b978;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.assessment-notice strong {
+  color: #ffe37c;
+  font-family: var(--font-display);
+  font-size: 12px;
 }
 
 .terminal-option {

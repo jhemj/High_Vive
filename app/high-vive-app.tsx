@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { CATEGORIES, METRICS, PROTOCOL_VERSION } from "../packages/protocol/runtime.mjs";
+import { CATEGORIES, METRICS } from "../packages/protocol/runtime.mjs";
 import { PasskeyAuth } from "./passkey-auth";
 
 type Locale = "ko" | "en";
@@ -52,7 +52,7 @@ const copy = {
     title: "바이브코더 리더보드",
     subtitle: "당신과 함께 일한 AI가 평가하는 바이브코딩 실력.",
     official: "OFFICIAL",
-    officialHelp: "Challenge-bound · 신뢰도 60+ · 현행 Protocol",
+    officialHelp: "검증 절차 완료 · 신뢰도 60+ · 최신 평가 기준",
     all: "전체",
     participants: "참가자",
     serverLlm: "서버 LLM",
@@ -72,47 +72,52 @@ const copy = {
     profile: "프로필 열기",
     register: "내 패스포트 등록",
     emptyOfficial: "아직 공식 Passport가 없습니다.",
-    emptyBody: "첫 Challenge-bound 평가를 시작해 High-Vive 기록을 만드세요.",
-    methodology: "평가 방법",
-    methodTitle: "실력과 신뢰를 분리한 AI Witness 벤치마크",
-    methodBody: "로컬 Codex 또는 Claude Code가 10개 원점수를 평가하고, 서버는 고정된 calibration으로 OVR과 HV Rating을 계산합니다. Reliability는 소유권·commitment·challenge·proof만 반영하며 실력 점수에 더하지 않습니다.",
+    emptyBody: "첫 Passport 평가를 시작하고 전 세계 바이브코더들과 실력을 비교해 보세요.",
+    methodology: "HIGH-VIVE란?",
+    methodTitle: "당신과 함께 일한 AI가 증명하는 Vibe Coding Benchmark",
+    methodBody: "High-Vive는 한 번의 시험이나 자기소개가 아니라, 축적된 AI 협업 이력에서 드러난 실제 작업 방식을 Passport로 만들고 전 세계 바이브코더와 같은 기준에서 비교합니다. 실력은 OVR과 HV Rating으로, 검증 가능성은 Reliability로 분리해 보여줍니다.",
     steps: [
-      ["LOCAL SCAN", "선택한 AI 코딩 에이전트의 전체 로컬 이력을 읽기 전용으로 집계합니다."],
-      ["COMMIT", "원문 대신 canonical evidence Merkle root를 먼저 등록합니다."],
-      ["CHALLENGE", "서버 seed로 표본을 결정론적으로 선택하고 proof를 연결합니다."],
-      ["AI WITNESS", "로컬 Codex 또는 Claude Code가 지표별 점수·confidence·근거·한계를 작성합니다."],
-      ["SERVER RATING", "서버가 OVR·HV Rating·Reliability·Provisional Tier를 재계산합니다."],
+      ["AUTOMATED LOCAL SCAN", "Codex 또는 Claude Code에 축적된 전체 로컬 작업 이력을 읽기 전용으로 자동 분석합니다. 한 번의 멋진 결과가 아니라 평소의 작업 방식을 봅니다."],
+      ["YOUR AI KNOWS YOUR VIBE", "당신과 실제로 일해 온 로컬 AI가 10개 지표로 Vibe Coding 역량을 평가하고, 강점과 보완점, 근거와 한계를 함께 설명합니다."],
+      ["SERVER RATING", "평가 결과를 Passport로 등록하면 전 세계 바이브코더들과 OVR·HV Rating·Reliability·Provisional Tier를 비교할 수 있습니다."],
     ],
-    transparency: "투명성",
+    transparency: "평가 범위",
     transparencyBody: "특정 기기와 평가 시점에 발견된 로컬 AI 코딩 에이전트 이력을 분석한 AI Witness 평가입니다. 신원, 전체 업무 이력, 실제 성과 또는 고용 적합성을 보증하지 않습니다.",
-    modalTitle: "공식 Passport 만들기",
-    modalLead: "원문은 기기에 남기고, commitment와 공개 manifest만 등록한 뒤 자동 공개합니다.",
-    profileStep: "1. 공개 handle",
-    cliStep: "2. 로컬 평가",
-    publishStep: "3. 자동 공개",
-    handle: "handle",
-    displayName: "공개 이름",
-    saveProfile: "프로필 저장",
-    agentChoice: "평가 에이전트",
-    detectedEnvironment: "접속 환경 자동 감지",
-    changeEnvironment: "환경 직접 선택",
-    codexStart: "Codex 앱에서 바로 시작",
-    codexStartHelp: "Codex가 설치·스캔·평가 준비를 순서대로 진행합니다.",
-    claudeStart: "Claude Code 앱에서 바로 시작",
-    claudeStartHelp: "Claude Desktop의 Code 세션에 High-Vive 평가 지시를 바로 채웁니다.",
-    terminalFallback: "터미널로 시작",
-    terminalHelp: "Node.js가 없어도 설치 스크립트가 필요한 환경을 준비합니다.",
-    copyCommand: "한 줄 명령 복사",
+    modalTitle: "내 High-Vive Passport 만들기",
+    modalLead: "나와 함께 일한 로컬 AI가 작업 이력을 평가하고, 공개 가능한 결과만 Passport와 리더보드에 등록합니다.",
+    profileStep: "1. 공개 프로필 만들기",
+    cliStep: "2. AI 평가 시작하기",
+    publishStep: "3. 리더보드 등록",
+    handle: "내 고유 주소 (Handle)",
+    handlePlaceholder: "예: vibe_master",
+    handleHelp: "프로필 주소에 사용되는 나만의 ID입니다. 영문 소문자·숫자·밑줄(_) 3~24자만 사용할 수 있어요.",
+    displayName: "리더보드 닉네임",
+    displayNamePlaceholder: "예: 바이브마스터",
+    displayNameHelp: "Passport와 리더보드에 크게 표시되는 이름입니다. 한글과 영문 모두 사용할 수 있어요.",
+    saveProfile: "프로필 만들고 다음",
+    agentChoice: "어떤 AI와 주로 일했나요?",
+    detectedEnvironment: "지금 사용 중인 기기",
+    changeEnvironment: "다른 기기에서 진행",
+    codexStart: "Codex로 평가 시작",
+    codexStartHelp: "Codex가 전체 작업 이력을 안전하게 살펴보고 Passport 평가를 진행합니다.",
+    claudeStart: "Claude Code로 평가 시작",
+    claudeStartHelp: "Claude Code가 전체 작업 이력을 안전하게 살펴보고 Passport 평가를 진행합니다.",
+    assessmentNotice: "평가는 작업 이력의 양에 따라 최대 10분 정도 걸릴 수 있습니다. 완료 표시가 나타날 때까지 이 창을 닫지 마세요.",
+    privacyTitle: "내 데이터 보호",
+    footerMeta: "내 기기에서 AI 평가 · 서버 LLM 재평가 0회",
+    terminalFallback: "앱에서 열리지 않나요?",
+    terminalHelp: "아래 명령을 복사해 터미널에 붙여넣으면 같은 평가를 시작할 수 있습니다.",
+    copyCommand: "평가 명령 복사",
     copied: "복사됨",
-    assessmentStatus: "평가 상태",
-    waiting: "CLI 평가를 기다리는 중",
-    published: "공개 완료",
+    assessmentStatus: "현재 진행 상황",
+    waiting: "평가 시작을 기다리고 있어요",
+    published: "리더보드 등록 완료",
     close: "닫기",
     signIn: "로그인 세션이 만료되었습니다. 다시 로그인해 주세요.",
     signInButton: "로그인",
     signOut: "로그아웃",
     signedIn: "로그인됨",
-    privacy: "Codex·Claude Code 대화 원문, 로컬 파일, 절대 경로, tool arguments는 서버로 전송되지 않습니다.",
+    privacy: "대화 원문과 로컬 파일은 내 기기에 그대로 남습니다. 공개하기로 선택한 평가 결과와 확인용 정보만 High-Vive에 등록됩니다.",
     noSelection: "표시할 Passport가 없습니다.",
   },
   en: {
@@ -120,7 +125,7 @@ const copy = {
     title: "VIBE CODER LEADERBOARD",
     subtitle: "Vibe-coding skill, evaluated by the AI that works with you.",
     official: "OFFICIAL",
-    officialHelp: "Challenge-bound · Reliability 60+ · Current Protocol",
+    officialHelp: "Verification complete · Reliability 60+ · Current criteria",
     all: "All",
     participants: "Players",
     serverLlm: "Server LLM",
@@ -140,47 +145,52 @@ const copy = {
     profile: "Open profile",
     register: "Create my Passport",
     emptyOfficial: "No official Passports yet.",
-    emptyBody: "Start the first challenge-bound assessment and establish the High-Vive record.",
-    methodology: "Method",
-    methodTitle: "An AI Witness benchmark that separates skill from trust",
-    methodBody: "Local Codex or Claude Code scores ten raw metrics. The server applies fixed calibration to calculate OVR and HV Rating. Reliability reflects ownership, commitment, challenge, and proofs only; it is never added to skill.",
+    emptyBody: "Start the first Passport assessment and compare your skills with vibe coders worldwide.",
+    methodology: "WHAT IS HIGH-VIVE?",
+    methodTitle: "The Vibe Coding Benchmark Witnessed by the AI That Works With You",
+    methodBody: "High-Vive turns the way you actually work across your accumulated AI collaboration history—not a one-off test or self-description—into a Passport and a global benchmark. Skill is shown as OVR and HV Rating, while verification confidence remains separate as Reliability.",
     steps: [
-      ["LOCAL SCAN", "Read-only aggregation of the selected AI coding agent's full local history."],
-      ["COMMIT", "Register a canonical evidence Merkle root, not transcripts."],
-      ["CHALLENGE", "Use a server seed for deterministic samples and proofs."],
-      ["AI WITNESS", "Local Codex or Claude Code writes metric scores, confidence, evidence, and limits."],
-      ["SERVER RATING", "The server recalculates OVR, HV Rating, Reliability, and Provisional Tier."],
+      ["AUTOMATED LOCAL SCAN", "Your full local Codex or Claude Code work history is analyzed automatically in read-only mode. High-Vive measures how you normally work—not one polished result."],
+      ["YOUR AI KNOWS YOUR VIBE", "The local AI that has actually worked with you evaluates your Vibe Coding across ten dimensions and explains your strengths, growth areas, evidence, and limits."],
+      ["SERVER RATING", "Publish the result as a Passport to compare OVR, HV Rating, Reliability, and Provisional Tier with vibe coders worldwide."],
     ],
-    transparency: "Transparency",
+    transparency: "Assessment scope",
     transparencyBody: "An AI Witness assessment of local AI coding-agent history found on a specific device at a specific time. It does not prove identity, complete work history, real-world outcomes, or hiring fitness.",
-    modalTitle: "Create an official Passport",
-    modalLead: "Raw history stays on your device. The commitment and public manifest are registered and published automatically.",
-    profileStep: "1. Public handle",
-    cliStep: "2. Local assessment",
-    publishStep: "3. Automatic publish",
-    handle: "Handle",
-    displayName: "Display name",
-    saveProfile: "Save profile",
-    agentChoice: "Assessment agent",
-    detectedEnvironment: "Detected environment",
-    changeEnvironment: "Choose another environment",
-    codexStart: "Start in the Codex app",
-    codexStartHelp: "Codex guides setup, scanning, and assessment preparation.",
-    claudeStart: "Start in the Claude Code app",
-    claudeStartHelp: "Opens a Claude Desktop Code session with the High-Vive assessment instructions prefilled.",
-    terminalFallback: "Start from a terminal",
-    terminalHelp: "The installer prepares the required runtime even when Node.js is missing.",
-    copyCommand: "Copy one-line command",
+    modalTitle: "Create My High-Vive Passport",
+    modalLead: "The local AI that works with you evaluates your work history. Only the public result is added to your Passport and the leaderboard.",
+    profileStep: "1. Create your public profile",
+    cliStep: "2. Start your AI assessment",
+    publishStep: "3. Join the leaderboard",
+    handle: "Your unique URL (Handle)",
+    handlePlaceholder: "e.g. vibe_master",
+    handleHelp: "Your unique profile ID. Use 3–24 lowercase letters, numbers, or underscores only.",
+    displayName: "Leaderboard nickname",
+    displayNamePlaceholder: "e.g. Vibe Master",
+    displayNameHelp: "The name shown prominently on your Passport and the leaderboard. Any language is welcome.",
+    saveProfile: "Create profile and continue",
+    agentChoice: "Which AI do you work with most?",
+    detectedEnvironment: "Device you're using now",
+    changeEnvironment: "Continue on another device",
+    codexStart: "Start assessment with Codex",
+    codexStartHelp: "Codex safely reviews your full work history and prepares your Passport assessment.",
+    claudeStart: "Start assessment with Claude Code",
+    claudeStartHelp: "Claude Code safely reviews your full work history and prepares your Passport assessment.",
+    assessmentNotice: "The assessment can take up to 10 minutes depending on your history. Keep this window open until completion appears.",
+    privacyTitle: "Your data stays yours",
+    footerMeta: "AI assessment runs locally · 0 server LLM re-evaluations",
+    terminalFallback: "App not opening?",
+    terminalHelp: "Copy the command below into your terminal to start the same assessment.",
+    copyCommand: "Copy assessment command",
     copied: "Copied",
-    assessmentStatus: "Assessment status",
-    waiting: "Waiting for the CLI assessment",
-    published: "Published",
+    assessmentStatus: "Current progress",
+    waiting: "Waiting for the assessment to start",
+    published: "Added to the leaderboard",
     close: "Close",
     signIn: "Your sign-in session expired. Please sign in again.",
     signInButton: "Sign in",
     signOut: "Sign out",
     signedIn: "Signed in",
-    privacy: "Codex and Claude Code transcripts, local files, absolute paths, and tool arguments are not uploaded.",
+    privacy: "Your transcripts and local files stay on your device. High-Vive receives only the assessment result and verification details you choose to publish.",
     noSelection: "No Passport to display.",
   },
 } as const;
@@ -237,6 +247,23 @@ function detectPlatform(): Platform {
   return "windows";
 }
 
+function friendlyAssessmentStatus(status: string | undefined, locale: Locale) {
+  if (!status) return locale === "ko" ? "평가 시작을 기다리고 있어요" : "Waiting for the assessment to start";
+  const labels: Record<string, LocalizedText> = {
+    DRAFT: { ko: "평가 준비 중", en: "Preparing your assessment" },
+    COMMITTED: { ko: "작업 이력 확인 완료", en: "Work history confirmed" },
+    CHALLENGED: { ko: "AI가 작업 이력을 평가하는 중", en: "Your AI is evaluating your work history" },
+    ASSESSED: { ko: "평가 결과 준비 완료", en: "Assessment result ready" },
+    SUBMITTED: { ko: "리더보드 등록 처리 중", en: "Adding your result to the leaderboard" },
+    PUBLISHED: { ko: "리더보드 등록 완료", en: "Added to the leaderboard" },
+    EXPIRED: { ko: "평가 시간이 지나 다시 시작해야 해요", en: "This assessment expired—please start again" },
+    FAILED: { ko: "평가를 완료하지 못했어요", en: "The assessment could not be completed" },
+    CANCELLED: { ko: "평가가 취소됐어요", en: "Assessment cancelled" },
+    REVOKED: { ko: "공개가 중단된 평가예요", en: "This assessment is no longer published" },
+  };
+  return labels[status]?.[locale] || status;
+}
+
 function ToolBadges({ tools = [] }: { tools?: string[] }) {
   const normalized = Array.from(new Set(tools.length ? tools : ["codex"]));
   return <span className="tool-badges">{normalized.map((tool) => <b className={`tool-badge tool-${tool}`} key={tool} title={tool === "codex" ? "Codex" : tool}>{tool === "codex" ? "CX" : tool === "claude-code" ? "CL" : tool.slice(0, 2).toUpperCase()}</b>)}</span>;
@@ -251,8 +278,8 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   const [composerOpen, setComposerOpen] = useState(false);
   const [viewer, setViewer] = useState<{ id: string; displayName: string; provider: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [handle, setHandle] = useState("ngmptdz");
-  const [displayName, setDisplayName] = useState("ngmptdz");
+  const [handle, setHandle] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [profileReady, setProfileReady] = useState(false);
   const [assessmentState, setAssessmentState] = useState<AssessmentState | null>(null);
   const [platform, setPlatform] = useState<Platform>("windows");
@@ -505,13 +532,13 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
         <section className="protocol-section" aria-labelledby="method-title"><div className="protocol-intro"><p className="eyebrow">{t.methodology}</p><h2 id="method-title">{t.methodTitle}</h2><p>{t.methodBody}</p></div><ol className="protocol-steps">{t.steps.map(([title, body], index) => <li key={title}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{title}</strong><p>{body}</p></div></li>)}</ol></section>
       </main>
 
-      <footer className="site-footer"><p><strong>{t.transparency}</strong> {t.transparencyBody}</p><p>PROTOCOL {PROTOCOL_VERSION} · SERVER LLM CALLS 0</p></footer>
+      <footer className="site-footer"><p><strong>{t.transparency}</strong> {t.transparencyBody}</p><p>{t.footerMeta}</p></footer>
 
       {composerOpen ? <div className="modal-backdrop"><section className="passport-modal onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="composer-title">
         <div className="modal-heading"><div><p className="eyebrow">{t.register}</p><h2 id="composer-title">{t.modalTitle}</h2><p>{t.modalLead}</p></div><button className="modal-close" aria-label={t.close} onClick={() => setComposerOpen(false)}>×</button></div>
         {!authChecked ? <div className="auth-loading">…</div> : !viewer ? <PasskeyAuth locale={locale} onAuthenticated={refreshViewer} /> : <><div className="onboarding-steps">
           <section className={profileReady ? "is-complete" : "is-active"}><span>01</span><h3>{t.profileStep}</h3>
-            <form onSubmit={saveProfile}><label>{t.handle}<input value={handle} onChange={(event) => setHandle(event.target.value.toLowerCase())} pattern="[a-z0-9_]{3,24}" maxLength={24} required /></label><label>{t.displayName}<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={40} required /></label><button className="button button-outline" disabled={busy}>{t.saveProfile}</button></form>
+            <form onSubmit={saveProfile}><label><span>{t.handle}</span><input value={handle} placeholder={t.handlePlaceholder} onChange={(event) => setHandle(event.target.value.toLowerCase())} pattern="[a-z0-9_]{3,24}" maxLength={24} required /><small>{t.handleHelp}</small></label><label><span>{t.displayName}</span><input value={displayName} placeholder={t.displayNamePlaceholder} onChange={(event) => setDisplayName(event.target.value)} maxLength={40} required /><small>{t.displayNameHelp}</small></label><button className="button button-outline" disabled={busy}>{t.saveProfile}</button></form>
           </section>
           <section className={assessmentState?.assessment ? "is-complete" : profileReady ? "is-active" : ""}><span>02</span><h3>{t.cliStep}</h3>
             <p className="environment-detected"><b>{t.agentChoice}</b><span>{witnessTool === "codex" ? "Codex" : "Claude Code"}</span></p>
@@ -522,14 +549,15 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
             {witnessTool === "codex" && platform !== "ubuntu" ? <small className="launch-help">{t.codexStartHelp}</small> : null}
             {witnessTool === "claude-code" && profileReady ? <a className="button button-primary codex-launch" href={claudeDeepLink}>{t.claudeStart}</a> : null}
             {witnessTool === "claude-code" ? <small className="launch-help">{t.claudeStartHelp}</small> : null}
+            <p className="assessment-notice"><strong>{locale === "ko" ? "잠깐!" : "Please note"}</strong>{t.assessmentNotice}</p>
             <div className="terminal-option"><b>{t.terminalFallback}</b><small>{t.terminalHelp}</small><pre className="cli-command">{terminalCommand}</pre><button className="button button-outline" type="button" disabled={!profileReady} onClick={copyCommand}>{copied ? t.copied : t.copyCommand}</button></div>
-            <p className="assessment-live"><b>{t.assessmentStatus}</b><span>{assessmentState?.assessment?.status || t.waiting}</span><small>{assessmentState?.commitment ? `${assessmentState.commitment.sessionCount} sessions · ${assessmentState.commitment.activeDays} active days` : t.waiting}</small></p>
+            <p className="assessment-live"><b>{t.assessmentStatus}</b><span>{friendlyAssessmentStatus(assessmentState?.assessment?.status, locale)}</span><small>{assessmentState?.commitment ? (locale === "ko" ? `${assessmentState.commitment.sessionCount}개 작업 세션 · ${assessmentState.commitment.activeDays}일간 활동` : `${assessmentState.commitment.sessionCount} work sessions · ${assessmentState.commitment.activeDays} active days`) : t.waiting}</small></p>
           </section>
           <section className={assessmentState?.passport?.status === "PUBLISHED" ? "is-complete" : assessmentState?.passport ? "is-active" : ""}><span>03</span><h3>{t.publishStep}</h3>
-            {assessmentState?.passport ? <div className="publish-preview"><dl><div><dt>HV RATING</dt><dd>{assessmentState.passport.hvRating}</dd></div><div><dt>OVR</dt><dd>{assessmentState.passport.ovr}</dd></div><div><dt>REL</dt><dd>{assessmentState.passport.reliabilityScore}</dd></div><div><dt>EVIDENCE</dt><dd>{assessmentState.passport.evidenceLevel}</dd></div></dl><strong className="auto-published">{assessmentState.passport.status === "PUBLISHED" ? t.published : assessmentState.passport.status}</strong></div> : <p>{t.waiting}</p>}
+            {assessmentState?.passport ? <div className="publish-preview"><dl><div><dt>HV RATING</dt><dd>{assessmentState.passport.hvRating}</dd></div><div><dt>OVR</dt><dd>{assessmentState.passport.ovr}</dd></div><div><dt>REL</dt><dd>{assessmentState.passport.reliabilityScore}</dd></div><div><dt>EVIDENCE</dt><dd>{assessmentState.passport.evidenceLevel}</dd></div></dl><strong className="auto-published">{friendlyAssessmentStatus(assessmentState.passport.status, locale)}</strong></div> : <p>{t.waiting}</p>}
           </section>
         </div>
-        <p className="privacy-note"><strong>LOCAL-FIRST</strong> {t.privacy}</p>{message ? <p className="form-message" role="status">{message}</p> : null}</>}
+        <p className="privacy-note"><strong>{t.privacyTitle}</strong> {t.privacy}</p>{message ? <p className="form-message" role="status">{message}</p> : null}</>}
       </section></div> : null}
     </div>
   );

@@ -70,12 +70,12 @@ export function PasskeyAuth({ locale, returnTo = "/?passport=1", onAuthenticated
     if (name === "NotAllowedError") {
       if (action === "login" && !window.localStorage.getItem("high-vive-passkey-id")) {
         return ko
-          ? "이 기기에서 기존 High-Vive Passkey를 찾지 못했습니다. 처음 등록하는 경우 ‘새 Passkey로 시작’을 누르세요."
-          : "No existing High-Vive Passkey was found on this device. If this is your first visit, choose ‘Start with a new Passkey’.";
+          ? "이 기기에 저장된 High-Vive 로그인 정보를 찾지 못했어요. 처음이라면 ‘Passkey로 새 계정 만들기’를 선택해 주세요."
+          : "We couldn't find High-Vive sign-in details on this device. If you're new, choose ‘Create an account with Passkey’.";
       }
       return ko
-        ? "Windows Hello 요청이 취소·시간초과됐거나 현재 인앱 브라우저가 암호 관리자 접근을 허용하지 않았습니다. 아래 주소를 복사해 Edge 또는 Chrome에서 다시 여세요."
-        : "Windows Hello was cancelled or timed out, or this in-app browser could not access the passkey manager. Copy the address below and reopen it in Edge or Chrome.";
+        ? "로그인 창이 닫혔거나 시간이 지났습니다. 인앱 브라우저에서는 연결이 제한될 수 있으니 아래 주소를 복사해 Edge 또는 Chrome에서 다시 열어 주세요."
+        : "The sign-in window was closed or timed out. In-app browsers can restrict Passkeys, so copy the address below and reopen it in Edge or Chrome.";
     }
     return error instanceof Error ? error.message : String(error);
   }
@@ -145,14 +145,14 @@ export function PasskeyAuth({ locale, returnTo = "/?passport=1", onAuthenticated
 
   const signInPath = `/signin-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`;
   return <div className="auth-panel">
-    <div><p className="eyebrow">HIGH-VIVE ACCOUNT</p><h3>{ko ? "평가 도구와 무관하게 로그인" : "Sign in independently of your AI tool"}</h3><p>{ko ? "Claude Code 사용자는 ChatGPT 계정이 필요 없습니다. Passkey로 바로 시작할 수 있습니다." : "Claude Code users do not need a ChatGPT account. Start directly with a Passkey."}</p></div>
+    <div><p className="eyebrow">WELCOME TO HIGH-VIVE</p><h3>{ko ? "High-Vive 시작하기" : "Get started with High-Vive"}</h3><p>{ko ? "처음이라면 Passkey로 간편하게 가입하세요. 이미 가입했다면 기존 Passkey나 ChatGPT 계정으로 로그인할 수 있습니다. Codex와 Claude Code 모두 이용할 수 있어요." : "New here? Create an account with a Passkey. Returning users can sign in with an existing Passkey or ChatGPT. Both Codex and Claude Code are supported."}</p></div>
     <div className="auth-actions">
-      <button className="button button-primary" type="button" disabled={Boolean(busy)} onClick={register}>{busy === "register" ? "…" : ko ? "새 Passkey로 시작" : "Start with a new Passkey"}</button>
-      <button className="button button-outline" type="button" disabled={Boolean(busy)} onClick={login}>{busy === "login" ? "…" : ko ? "기존 Passkey로 로그인" : "Sign in with an existing Passkey"}</button>
+      <button className="button button-primary" type="button" disabled={Boolean(busy)} onClick={register}>{busy === "register" ? "…" : ko ? "Passkey로 새 계정 만들기" : "Create an account with Passkey"}</button>
+      <button className="button button-outline" type="button" disabled={Boolean(busy)} onClick={login}>{busy === "login" ? "…" : ko ? "Passkey로 로그인" : "Sign in with Passkey"}</button>
       <span>{ko ? "또는" : "or"}</span>
-      <a className="button button-quiet" href={signInPath}>{ko ? "ChatGPT 계정으로 계속" : "Continue with ChatGPT"}</a>
+      <a className="button button-quiet" href={signInPath}>{ko ? "ChatGPT로 시작하기" : "Start with ChatGPT"}</a>
     </div>
-    <small>{ko ? "처음이면 새 Passkey로 시작하세요. Passkey는 Windows Hello, Touch ID, 휴대전화 또는 비밀번호 관리자를 사용합니다." : "New here? Start with a new Passkey. Passkeys use Windows Hello, Touch ID, your phone, or a password manager."}</small>
+    <small>{ko ? "Passkey는 비밀번호 대신 Windows Hello, Touch ID, 휴대전화 또는 비밀번호 관리자를 사용하는 안전한 로그인 방식입니다." : "A Passkey is a secure, password-free sign-in using Windows Hello, Touch ID, your phone, or a password manager."}</small>
     <button className="auth-copy-link" type="button" onClick={copyBrowserLink}>{copied ? (ko ? "주소 복사됨" : "Address copied") : (ko ? "Edge·Chrome용 주소 복사" : "Copy address for Edge or Chrome")}</button>
     {message ? <p className="auth-error" role="alert">{message}</p> : null}
   </div>;
