@@ -76,7 +76,6 @@ const copy = {
     countryAverage: "평균 HV",
     countryTop: "최고 HV",
     participants: "참가자",
-    ratingMix: "OVR·신뢰·상대",
     rankBasis: "순위 기준",
     rank: "순위",
     coder: "바이브코더",
@@ -96,7 +95,7 @@ const copy = {
     emptyBody: "첫 Passport 평가를 시작하고 전 세계 바이브코더들과 실력을 비교해 보세요.",
     methodology: "HIGH-VIVE란?",
     methodTitle: "당신과 함께 일한 AI가 증명하는 Vibe Coding Benchmark",
-    methodBody: "High-Vive는 축적된 AI 협업 이력에서 실제 작업 방식을 평가합니다. HV Rating은 OVR 70%, 현재 신뢰도 15%, 공식 참가자 내 상대 위치 15%로 계산되며 새 Passport가 등록되면 리그 전체가 다시 산정됩니다. 신뢰도는 평가 후 90일마다 5점씩 감쇠합니다.",
+    methodBody: "High-Vive는 축적된 AI 협업 이력에서 실제 작업 방식을 평가합니다. 평가 결과는 비교 가능한 HV Rating과 티어로 정리되며, 새 Passport가 등록될 때 리그 순위가 갱신됩니다. 오래된 평가의 신뢰도는 시간이 지나면 서서히 낮아집니다.",
     steps: [
       ["AUTOMATED LOCAL SCAN", "Codex 또는 Claude Code에 축적된 전체 로컬 작업 이력을 읽기 전용으로 자동 분석합니다. 한 번의 멋진 결과가 아니라 평소의 작업 방식을 봅니다."],
       ["YOUR AI KNOWS YOUR VIBE", "당신과 실제로 일해 온 로컬 AI가 10개 지표로 Vibe Coding 역량을 평가하고, 강점과 보완점, 근거와 한계를 함께 설명합니다."],
@@ -162,7 +161,6 @@ const copy = {
     countryAverage: "Average HV",
     countryTop: "Top HV",
     participants: "Players",
-    ratingMix: "OVR · Trust · Rank",
     rankBasis: "Ranked by",
     rank: "Rank",
     coder: "Vibe coder",
@@ -182,7 +180,7 @@ const copy = {
     emptyBody: "Start the first Passport assessment and compare your skills with vibe coders worldwide.",
     methodology: "WHAT IS HIGH-VIVE?",
     methodTitle: "The Vibe Coding Benchmark Witnessed by the AI That Works With You",
-    methodBody: "High-Vive benchmarks how you actually work across accumulated AI collaboration history. HV Rating combines 70% OVR, 15% current Reliability, and 15% relative position among official players. The league is recalculated when a new Passport is published, and Reliability decays by five points every 90 days.",
+    methodBody: "High-Vive benchmarks how you actually work across accumulated AI collaboration history. Your result becomes a comparable HV Rating and tier, and the league updates whenever a new Passport is published. The reliability of older assessments gradually decreases over time.",
     steps: [
       ["AUTOMATED LOCAL SCAN", "Your full local Codex or Claude Code work history is analyzed automatically in read-only mode. High-Vive measures how you normally work—not one polished result."],
       ["YOUR AI KNOWS YOUR VIBE", "The local AI that has actually worked with you evaluates your Vibe Coding across ten dimensions and explains your strengths, growth areas, evidence, and limits."],
@@ -543,7 +541,8 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
             <button className={locale === "ko" ? "is-active" : ""} onClick={() => switchLocale("ko")}>KO</button>
             <button className={locale === "en" ? "is-active" : ""} onClick={() => switchLocale("en")}>EN</button>
           </div>
-          {viewer ? <span className="header-account" title={viewer.displayName}><small>{t.signedIn}</small><b>{viewer.displayName}</b><span className="header-account-actions">{profileReady ? <button type="button" onClick={openSettings}>{t.personalSettings}</button> : null}<button type="button" onClick={signOut}>{t.signOut}</button></span></span> : <button className="button button-quiet header-signin" type="button" onClick={openComposer}>{t.signInButton}</button>}
+          {viewer ? <button className="button button-quiet header-settings" type="button" onClick={profileReady ? openSettings : openComposer}>{t.personalSettings}</button> : null}
+          {viewer ? <span className="header-account" title={viewer.displayName}><small>{t.signedIn}</small><b>{viewer.displayName}</b><span className="header-account-actions"><button type="button" onClick={signOut}>{t.signOut}</button></span></span> : <button className="button button-quiet header-signin" type="button" onClick={openComposer}>{t.signInButton}</button>}
           <button className="button button-outline header-cta" onClick={openComposer}>{t.register}</button>
         </div>
       </header>
@@ -555,7 +554,6 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
               <div><p className="season-kicker">{t.benchmark}</p><h1 id="leaderboard-title">{t.title}</h1><p className="leaderboard-subtitle">{t.subtitle}</p></div>
               <dl className="season-meta">
                 <div><dt>{t.participants}</dt><dd>{passports.length}</dd></div>
-                <div><dt>{t.ratingMix}</dt><dd>70·15·15</dd></div>
                 <div><dt>{t.rankBasis}</dt><dd>HV</dd></div>
               </dl>
             </div>
@@ -686,7 +684,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
       </section></div> : null}
       {settingsOpen && viewer ? <div className="modal-backdrop"><section className="passport-modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <div className="modal-heading"><div><p className="eyebrow">@{handle}</p><h2 id="settings-title">{t.settingsTitle}</h2><p>{t.settingsLead}</p></div><button className="modal-close" aria-label={t.close} onClick={() => setSettingsOpen(false)}>×</button></div>
-        <form onSubmit={saveSettings}><label><span>{t.country}</span><select value={country} onChange={(event) => setCountry(event.target.value)} required><option value="">{locale === "ko" ? "국가 또는 지역 선택" : "Choose a country or region"}</option>{countryOptions.map((code) => <option value={code} key={code}>{countryLabel(code, locale)}</option>)}</select><small>{t.countryHelp}</small></label><button className="button button-primary" disabled={busy}>{t.saveChanges}</button></form>
+        <form onSubmit={saveSettings}><label><span>{t.country}</span><select value={country} onChange={(event) => setCountry(event.target.value)} required><option value="">{locale === "ko" ? "국가 또는 지역 선택" : "Choose a country or region"}</option>{countryOptions.map((code) => <option value={code} key={code}>{countryLabel(code, locale)}</option>)}</select><small>{t.countryHelp}</small></label><div className="settings-actions"><button className="button button-primary" disabled={busy}>{t.saveChanges}</button><button className="button button-quiet" type="button" onClick={signOut}>{t.signOut}</button></div></form>
         {message ? <p className="form-message" role="status">{message}</p> : null}
       </section></div> : null}
     </div>
