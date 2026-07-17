@@ -1,0 +1,17 @@
+{
+  "version": "hv-anchors-v1",
+  "bands": [
+    { "range": "0-39", "label": "absent" },
+    { "range": "40-59", "label": "inconsistent" },
+    { "range": "60-74", "label": "repeatable" },
+    { "range": "75-89", "label": "systematic" },
+    { "range": "90-100", "label": "exceptional" }
+  ],
+  "verificationDiscipline": {
+    "0-39": "AI output is rarely checked.",
+    "40-59": "Checks occur but are not procedural.",
+    "60-74": "Tests or sources are used for important outputs.",
+    "75-89": "Repeatable verification is used for most work.",
+    "90-100": "Counter-evidence, regression tests, and independent validators are used consistently."
+  }
+}

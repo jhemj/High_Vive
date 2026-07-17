@@ -12,8 +12,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const acceptLanguage = requestHeaders.get("accept-language") ?? "";
   const locale = country ? (country === "KR" ? "ko" : "en") : /^ko(?:-|,|;|$)/i.test(acceptLanguage) ? "ko" : "en";
   const description = locale === "ko"
-    ? "바이브코더의 AI 협업 역량을 비교하는 벤치마크, ELO, 티어 리더보드."
-    : "A benchmark, ELO, and tier leaderboard for comparing vibe coders' AI collaboration skills.";
+    ? "로컬 Codex가 평가하는 바이브코더 AI 협업 벤치마크, Passport와 HV Rating 리더보드."
+    : "A local-Codex AI collaboration benchmark, Passport, and HV Rating leaderboard for vibe coders.";
 
   return {
     metadataBase: new URL(origin),
@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description,
     applicationName: "High-Vive",
-    keywords: ["vibe coder", "Codex", "AI benchmark", "leaderboard", "ELO"],
+    keywords: ["vibe coder", "Codex", "AI benchmark", "leaderboard", "HV Rating", "AI Witness"],
     openGraph: {
       type: "website",
       title: "High-Vive — Vibe Coder Benchmark League",

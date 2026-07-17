@@ -1,71 +1,35 @@
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("defines the localized ELO-first High-Vive leaderboard without season chrome", async () => {
-  const [page, layout, app] = await Promise.all([
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+test("renders the v1 Official/Open HV Rating leaderboard contract", async () => {
+  const [app, layout, profile, connect] = await Promise.all([
     readFile(new URL("../app/high-vive-app.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/u/[handle]/profile-client.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/connect/connect-client.tsx", import.meta.url), "utf8"),
   ]);
-
-  assert.match(page, /cf-ipcountry/);
-  assert.match(page, /<HighViveApp initialLocale=/);
-  assert.match(layout, /<html lang=\{locale\}>/);
-  assert.match(app, /HIGH-VIVE · VIBE CODER BENCHMARK/);
-  assert.match(app, /LEADERBOARD/);
-  assert.doesNotMatch(app, /SEASON 01|시즌 01/);
-  assert.match(app, /PROVISIONAL TIER/);
-  assert.match(app, /BENCHMARK OVR/);
-  assert.match(app, /RANKING ELO/);
-  assert.match(app, /검증 신뢰도/);
-  assert.match(app, /프론트엔드/);
-  assert.doesNotMatch(`${app}${layout}`, /�/);
-  assert.match(app, /strengthsKo/);
-  assert.match(app, /tokenEfficiency/);
-  assert.match(app, /claude-code/);
-  assert.match(app, /data-card-tier/);
-  assert.match(app, /attribute-tooltip/);
-  assert.doesNotMatch(app, /<nav className="site-nav"/);
-  assert.doesNotMatch(app, /이력서|react-loading-skeleton|Your site is taking shape/i);
+  assert.match(app, /OFFICIAL/);
+  assert.match(app, /OPEN/);
+  assert.match(app, /HV RATING/);
+  assert.match(app, /보정 OVR|CALIBRATED OVR/);
+  assert.match(app, /Evidence|증거 단계/);
+  assert.match(app, /Provisional Tier|잠정 티어/);
+  assert.match(app, /\/api\/v1\/leaderboards/);
+  assert.match(app, /\/api\/v1\/assessments/);
+  assert.match(app, /publishPassport/);
+  assert.match(profile, /PASSPORT HISTORY/);
+  assert.match(connect, /CLI DEVICE LOGIN/);
+  assert.match(layout, /HV Rating/);
+  assert.doesNotMatch(`${app}${layout}${profile}`, /\bELO\b|PERCENTILE|백분위/);
+  assert.doesNotMatch(app, /textarea|passport-json/);
 });
 
-test("keeps benchmark, persistence, and removed-starter contracts explicit", async () => {
-  const [layout, app, api, schema, css, packageJson, hosting, previewFiles] = await Promise.all([
-    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/high-vive-app.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/passports/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-    readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
-    readdir(new URL("../app/_sites-preview", import.meta.url)),
-  ]);
-
-  assert.match(layout, /High-Vive — Vibe Coder Benchmark League/);
-  assert.match(app, /high-vive-witness-v0\.2/);
-  assert.match(api, /calculateBenchmarkScore/);
-  assert.match(api, /calculatePercentileScores/);
-  assert.match(api, /scoreCalibration/);
-  assert.match(api, /calculateRankMeta/);
-  assert.match(api, /round1\(weighted\)/);
-  assert.match(api, /b\.eloRating - a\.eloRating/);
-  assert.match(api, /benchmarkScore/);
-  assert.match(api, /eloRating/);
-  assert.match(api, /tierDivision/);
-  assert.match(api, /reliabilityScore/);
-  assert.match(api, /application\/json; charset=utf-8/);
-  assert.doesNotMatch(api, /witnessLevel|W1|W2|W3|W4/);
-  assert.doesNotMatch(app, /witnessLevel|W1|W2|W3|W4/);
-  assert.doesNotMatch(schema, /witnessLevel|witness_level/);
-  assert.match(schema, /reliabilityScore/);
-  assert.match(api, /frontend/);
-  assert.match(api, /aiEngineering/);
-  assert.match(api, /security/);
-  assert.match(css, /\.league-dashboard/);
-  assert.match(css, /\.podium-grid/);
-  assert.match(packageJson, /"name": "high-vive-benchmark-league"/);
-  assert.doesNotMatch(packageJson, /react-loading-skeleton/);
-  assert.match(hosting, /"d1": "DB"/);
-  assert.deepEqual(previewFiles, []);
+test("keeps local-first privacy and server-zero-LLM copy explicit", async () => {
+  const app = await readFile(new URL("../app/high-vive-app.tsx", import.meta.url), "utf8");
+  assert.match(app, /SERVER LLM CALLS 0/);
+  assert.match(app, /Codex 대화 원문/);
+  assert.match(app, /commitment/);
+  assert.match(app, /Merkle root/);
+  assert.match(app, /신원, 전체 업무 이력, 실제 성과/);
 });

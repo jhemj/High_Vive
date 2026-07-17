@@ -15,6 +15,13 @@
       "when": 1784260000000,
       "tag": "0001_reliability_score",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784264721197,
+      "tag": "0002_closed_bishop",
+      "breakpoints": true
     }
   ]
 }

@@ -1,69 +1,88 @@
 # High-Vive
 
-High-Vive는 바이브코더의 Codex 협업 역량을 OVR, score-based ELO, League-style tier로 보여주는 로컬 AI 증언 기반 벤치마크 리더보드다.
+High-Vive is a local AI-witnessed benchmark and leaderboard for vibe coders.
+The user's local Codex evaluates the user's full local Codex history; the
+server verifies the assessment process and calculates comparable scores. The
+server makes **zero LLM calls**.
 
-## 전체 Codex 이력으로 Passport 만들기
+> 당신과 함께 일한 AI가 평가하는 바이브코딩 실력.
 
-현재 대화 하나가 아니라 로컬 `CODEX_HOME`의 전체 세션과 보관 세션을 스캔한다.
+## v1.0 model
+
+- **Raw Score:** Codex Witness scores ten AI-collaboration metrics.
+- **Calibrated OVR:** a versioned, deterministic calibration of the ten scores.
+- **HV Rating:** `round(Calibrated OVR × 10)`, from 0 to 1000. It is not Elo.
+- **Provisional Tier:** Iron through Challenger, derived from HV Rating.
+- **Reliability:** a separate server-calculated score for process integrity.
+- **Evidence Level:** E0 Self-Reported through E5 Longitudinal.
+- **Official leaderboard:** current-protocol, non-demo Passport with E2+ and
+  Reliability 60+; all other publishable records stay in Open.
+
+Passport versions are append-only. Handles belong to authenticated profiles;
+nickname-based upserts and official raw-JSON submission are disabled.
+
+## Create a Passport
+
+Once the site is running, create a profile and copy the command shown by the
+Passport flow:
 
 ```bash
-pnpm passport:scan -- --nickname my_handle --country KR --timezone Asia/Seoul
+npx high-vive login
+npx high-vive assess
 ```
 
-스캐너는 대화 원문을 서버로 보내지 않는다. `.high-vive/history-evidence.json`에 전체 범위의 집계·해시와 제한된 비식별 표본을 만들고, Codex가 이를 평가해 공개용 Passport 초안을 작성한다. 자세한 내용은 `docs/FULL_HISTORY_ASSESSMENT.md`를 참고한다.
+`high-vive assess` scans `CODEX_HOME/sessions` and `archived_sessions` as a
+stream, commits a deterministic evidence root, receives a one-time server
+challenge, selects reproducible samples, runs the local Codex Witness, shows a
+preview, and submits only after approval.
 
-High-Vive is a vibe-coder benchmark league. A candidate's local Codex evaluates
-real work evidence with a versioned protocol; the server validates the Passport,
-recalculates the ten-metric percentile Benchmark OVR, assigns ELO and tier,
-and publishes the result to a field-specific leaderboard.
+Raw transcripts, absolute paths, tool arguments, command output, and local
+files do not leave the device by default. Generated private evidence remains in
+`.high-vive/` and is git-ignored.
 
-The server does not call an LLM.
+Available commands:
 
-## Product model
-
-- **Benchmark OVR (0–100):** weighted score across ten calibrated metric percentiles
-- **ELO:** the primary ranking signal, derived from percentile OVR and verification reliability
-- **Tier:** Iron, Bronze, Silver, Gold, Platinum, Emerald, Diamond, Master,
-  Grandmaster, or Challenger; lower tiers use divisions IV–I
-- **Verification reliability (0–100):** scope, continuity, and evidence integrity, separate from skill
-- **Fixed categories:** Frontend, Backend, Full-stack, Mobile & Desktop, Data & Analytics,
-  AI & ML Engineering, AI Ops & Automation, DevOps/Cloud/Infra, Security, and Product/Design/Content
-- **Passport:** public benchmark result, selected evidence hashes, and assessment scope
-
-Each raw metric keeps one decimal place. High-Vive maps raw metrics to a versioned
-expert-cohort percentile curve before calculating OVR, preventing score inflation
-from collapsing the leaderboard into a narrow band. Future assessment cycles can
-update ELO with normal head-to-head or challenge deltas.
+```text
+high-vive login | doctor | assess | scan | status | preview | submit | logout
+```
 
 ## Local development
 
-Requirements: Node.js 22.13+ and pnpm 11.
+Requires Node.js 22.13+ and pnpm 11.
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Open `http://localhost:3000`.
-
-## Validation
-
 ```bash
-pnpm build
+pnpm typecheck
+pnpm lint
 pnpm test
-pnpm run db:generate
+pnpm db:check
+pnpm build
 ```
 
-## Structure
+Database schema changes are deploy-time migrations in `drizzle/`; request
+handlers never create tables.
 
-- `app/high-vive-app.tsx` — leaderboard, benchmark profile, submission flow
-- `app/api/passports/route.ts` — deterministic validation, OVR, ELO, and tier calculation
-- `db/schema.ts` — persistent Passport records in Cloudflare D1
-- `drizzle/` — D1 migration
-- `.openai/hosting.json` — Sites bindings
+## Repository map
 
-## Privacy and scoring
+- `app/` — leaderboard, profile, device login, and v1 APIs
+- `packages/protocol/` — single source of metrics, categories, scoring, tiers,
+  schemas, and versions
+- `packages/cli/` — publishable `high-vive` CLI and streaming scanner
+- `packages/shared/` — API validation, authorization, redaction checks, and
+  leaderboard queries
+- `db/` and `drizzle/` — D1 schema and migrations
+- `tests/` — unit, property, integration-contract, security, migration, and
+  rendered-app tests
+- `docs/HIGH_VIVE_V1_WORK_SPEC.md` — v1.0 implementation contract
 
-High-Vive stores derived scores, a public summary, selected evidence hashes, and
-scope counts. It does not require source files or private work artifacts. Benchmark
-scores are comparative signals, not identity verification or automatic hiring decisions.
+## Product boundary
+
+High-Vive is not a hiring service and does not certify identity, complete work
+history, actual business outcomes, or employment suitability. It records a
+Codex Witness assessment of local evidence found on one device at one point in
+time. See `docs/PRIVACY.md`, `docs/BENCHMARK_METHOD.md`, and
+`docs/THREAT_MODEL.md`.

@@ -1,0 +1,35 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+test("legacy arbitrary JSON submission is disabled", async () => {
+  const source = await readFile(new URL("../app/api/passports/route.ts", import.meta.url), "utf8");
+  assert.match(source, /LEGACY_SUBMISSION_DISABLED/);
+  assert.match(source, /410/);
+  assert.doesNotMatch(source, /INSERT INTO passports|ON CONFLICT/);
+});
+
+test("ownership checks do not use nickname or handle", async () => {
+  const [access, publish, profile] = await Promise.all([
+    readFile(new URL("../packages/shared/server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/v1/passports/[id]/publish/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/v1/me/profile/route.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(access, /assessment\.userId/);
+  assert.match(publish, /row\.userId !== user\.userId/);
+  assert.match(profile, /HANDLE_TAKEN/);
+  assert.doesNotMatch(`${access}${publish}`, /nickname\s*===|nickname\s*!==/);
+});
+
+test("server rejects sensitive public Passport text and oversized payloads", async () => {
+  const [server, submit] = await Promise.all([
+    readFile(new URL("../packages/shared/server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/v1/assessments/[id]/submit/route.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(server, /PAYLOAD_TOO_LARGE/);
+  assert.match(server, /PRIVATE KEY/);
+  assert.match(server, /Bearer/);
+  assert.match(submit, /PUBLIC_TEXT_SENSITIVE/);
+  assert.match(submit, /SUBMISSION_REPLAY/);
+  assert.match(submit, /NONCE_INVALID/);
+});

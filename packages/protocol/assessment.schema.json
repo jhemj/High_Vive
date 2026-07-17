@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://high-vive.example/schemas/assessment-v1.json",
+  "title": "High-Vive Evidence Commitment v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["historyRoot", "sessionCount", "recordCount", "activeDays", "dateRange", "scannerVersion", "canonicalizationVersion", "redactionVersion"],
+  "properties": {
+    "historyRoot": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "sessionCount": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+    "recordCount": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+    "activeDays": { "type": "integer", "minimum": 1, "maximum": 10000 },
+    "dateRange": { "type": "object", "required": ["from", "to"] },
+    "scannerVersion": { "const": "high-vive-cli-v1.0" },
+    "canonicalizationVersion": { "const": "hv-canonical-json-v1" },
+    "redactionVersion": { "const": "hv-redaction-v1" },
+    "scope": { "type": "object" }
+  }
+}

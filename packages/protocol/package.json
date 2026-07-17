@@ -1,0 +1,12 @@
+{
+  "name": "@high-vive/protocol",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./runtime.mjs",
+    "./passport.schema.json": "./passport.schema.json",
+    "./assessment.schema.json": "./assessment.schema.json",
+    "./protocol/*": "./protocol/*"
+  }
+}

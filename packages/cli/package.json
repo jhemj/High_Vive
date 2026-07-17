@@ -1,0 +1,22 @@
+{
+  "name": "high-vive",
+  "version": "1.0.0",
+  "description": "Local Codex witness CLI for the High-Vive benchmark",
+  "type": "module",
+  "bin": {
+    "high-vive": "./src/index.mjs"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@high-vive/protocol": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

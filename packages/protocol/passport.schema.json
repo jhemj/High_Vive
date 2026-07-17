@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://high-vive.example/schemas/passport-v1.json",
+  "title": "High-Vive Passport Submission v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocolVersion", "nonce", "historyRoot", "category", "summary", "strengths", "weaknesses", "metrics", "evaluator", "limitations"],
+  "properties": {
+    "protocolVersion": { "const": "high-vive-witness-v1.0" },
+    "nonce": { "type": "string", "minLength": 20, "maxLength": 200 },
+    "historyRoot": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "category": { "enum": ["frontend", "backend", "fullstack", "mobile", "data", "aiEngineering", "aiOps", "devops", "security", "product"] },
+    "subfields": { "type": "array", "maxItems": 4, "items": { "type": "string", "maxLength": 60 } },
+    "summary": {
+      "type": "object",
+      "required": ["ko", "en"],
+      "properties": { "ko": { "type": "string", "minLength": 30, "maxLength": 800 }, "en": { "type": "string", "minLength": 30, "maxLength": 800 } }
+    },
+    "strengths": { "type": "object" },
+    "weaknesses": { "type": "object" },
+    "metrics": { "type": "array", "minItems": 10, "maxItems": 10 },
+    "sampleProofs": { "type": "array", "maxItems": 24 },
+    "evaluator": { "type": "object" },
+    "limitations": { "type": "array", "minItems": 1, "maxItems": 8 }
+  }
+}
