@@ -138,7 +138,7 @@ high-vive submit
 high-vive logout
 ```
 
-기본 실행은 `npx high-vive assess`다. `.high-vive/private-evidence.json`과 평가 지시문은 업로드하지 않는다. 승인된 공개 draft와 submission manifest만 제출한다. 스캐너는 streaming, symlink 제외, oversized/invalid 집계, 절대경로·session id 비공개, 중복 제거, 합성 transcript 제외, canonical root, resume/cache, progress, `--dry-run`, `--output`, `--codex-home`, `--privacy-mode`를 지원한다.
+웹은 접속 환경을 Windows, macOS, Ubuntu로 자동 감지하고 수동 전환도 제공한다. Windows·macOS에서는 Codex 앱 deep link를 우선 제공하며, 모든 플랫폼에는 Node.js가 없는 환경도 준비하는 OS별 단일 설치 명령을 제공한다. CLI는 인증 정보가 없으면 device login을 자동 시작한다. `.high-vive/private-evidence.json`과 평가 지시문은 업로드하지 않는다. 승인된 공개 draft와 submission manifest만 제출한다. 스캐너는 streaming, symlink 제외, oversized/invalid 집계, 절대경로·session id 비공개, 중복 제거, 합성 transcript 제외, canonical root, resume/cache, progress, `--dry-run`, `--output`, `--codex-home`, `--privacy-mode`를 지원한다.
 
 ## 11. 개인정보
 

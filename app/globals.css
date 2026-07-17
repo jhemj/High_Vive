@@ -1974,6 +1974,94 @@ a {
   word-break: break-all;
 }
 
+.environment-detected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px;
+  color: #7890a4;
+  font-size: 9px;
+}
+
+.environment-detected span {
+  color: var(--lime);
+  font-family: var(--font-mono);
+  font-weight: 800;
+}
+
+.platform-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin-bottom: 14px;
+  background: #294154;
+}
+
+.platform-switch button {
+  min-height: 34px;
+  border: 0;
+  background: #07111a;
+  color: #8094a5;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.platform-switch button.is-active {
+  background: rgba(53, 240, 195, 0.13);
+  color: var(--lime);
+  box-shadow: inset 0 -2px 0 var(--lime);
+}
+
+.codex-launch {
+  width: 100%;
+  min-height: 44px;
+  text-decoration: none;
+}
+
+.launch-help {
+  display: block;
+  margin: 7px 0 15px;
+  color: #8296a7;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.terminal-option {
+  margin-top: 15px;
+  padding-top: 14px;
+  border-top: 1px solid #263d50;
+}
+
+.terminal-option > b,
+.terminal-option > small {
+  display: block;
+}
+
+.terminal-option > b {
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.terminal-option > small {
+  margin: 5px 0 9px;
+  color: #778d9f;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.terminal-option .cli-command {
+  max-height: 88px;
+  margin-bottom: 9px;
+}
+
+.terminal-option .button {
+  width: 100%;
+  min-height: 38px;
+}
+
 .assessment-live {
   display: grid;
   gap: 5px;

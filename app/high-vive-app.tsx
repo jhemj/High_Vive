@@ -5,6 +5,7 @@ import { CATEGORIES, METRICS, PROTOCOL_VERSION } from "../packages/protocol/runt
 
 type Locale = "ko" | "en";
 type Board = "official" | "open";
+type Platform = "windows" | "macos" | "ubuntu";
 type LocalizedText = { ko: string; en: string };
 type Scores = Record<string, number>;
 
@@ -94,8 +95,13 @@ const copy = {
     handle: "handle",
     displayName: "공개 이름",
     saveProfile: "프로필 저장",
-    createAssessment: "평가 세션 만들기",
-    copyCommand: "명령 복사",
+    detectedEnvironment: "접속 환경 자동 감지",
+    changeEnvironment: "환경 직접 선택",
+    codexStart: "Codex 앱에서 바로 시작",
+    codexStartHelp: "Codex가 설치·스캔·평가 준비를 순서대로 진행합니다.",
+    terminalFallback: "터미널로 시작",
+    terminalHelp: "Node.js가 없어도 설치 스크립트가 필요한 환경을 준비합니다.",
+    copyCommand: "한 줄 명령 복사",
     copied: "복사됨",
     assessmentStatus: "평가 상태",
     waiting: "CLI 평가를 기다리는 중",
@@ -155,8 +161,13 @@ const copy = {
     handle: "Handle",
     displayName: "Display name",
     saveProfile: "Save profile",
-    createAssessment: "Create assessment",
-    copyCommand: "Copy command",
+    detectedEnvironment: "Detected environment",
+    changeEnvironment: "Choose another environment",
+    codexStart: "Start in the Codex app",
+    codexStartHelp: "Codex guides setup, scanning, and assessment preparation.",
+    terminalFallback: "Start from a terminal",
+    terminalHelp: "The installer prepares the required runtime even when Node.js is missing.",
+    copyCommand: "Copy one-line command",
     copied: "Copied",
     assessmentStatus: "Assessment status",
     waiting: "Waiting for the CLI assessment",
@@ -209,6 +220,18 @@ function evidenceClass(level: string) {
   return `evidence-${level.toLowerCase()}`;
 }
 
+const platformLabels: Record<Platform, string> = { windows: "Windows", macos: "macOS", ubuntu: "Ubuntu" };
+const DEFAULT_SERVER = "https://high-vive-league.ngmptdz.chatgpt.site";
+
+function detectPlatform(): Platform {
+  if (typeof navigator === "undefined") return "windows";
+  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+  const value = `${nav.userAgentData?.platform || ""} ${navigator.platform || ""} ${navigator.userAgent || ""}`.toLowerCase();
+  if (value.includes("mac")) return "macos";
+  if (value.includes("linux") || value.includes("ubuntu")) return "ubuntu";
+  return "windows";
+}
+
 function ToolBadges({ tools = [] }: { tools?: string[] }) {
   const normalized = Array.from(new Set(tools.length ? tools : ["codex"]));
   return <span className="tool-badges">{normalized.map((tool) => <b className={`tool-badge tool-${tool}`} key={tool} title={tool === "codex" ? "Codex" : tool}>{tool === "codex" ? "CX" : tool === "claude-code" ? "CL" : tool.slice(0, 2).toUpperCase()}</b>)}</span>;
@@ -229,12 +252,21 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   const [handle, setHandle] = useState("ngmptdz");
   const [displayName, setDisplayName] = useState("ngmptdz");
   const [profileReady, setProfileReady] = useState(false);
-  const [assessment, setAssessment] = useState<{ assessmentId: string; uploadToken: string; command: string } | null>(null);
   const [assessmentState, setAssessmentState] = useState<AssessmentState | null>(null);
+  const [platform, setPlatform] = useState<Platform>("windows");
+  const [serverOrigin, setServerOrigin] = useState(DEFAULT_SERVER);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const t = copy[locale];
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPlatform(detectPlatform());
+      setServerOrigin(window.location.origin);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -254,31 +286,27 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
 
   useEffect(() => {
     if (!composerOpen) return;
-    fetch("/api/v1/me", { headers: { "x-high-vive-locale": locale } })
-      .then(async (response) => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/v1/me", { headers: { "x-high-vive-locale": locale }, cache: "no-store" });
         const result = await response.json();
         if (!response.ok) throw new Error(result?.error?.message || t.signIn);
+        if (!active) return;
         if (result.profile) {
           setHandle(result.profile.handle);
           setDisplayName(result.profile.displayName);
           setProfileReady(true);
         }
-      })
-      .catch((error) => setMessage(error instanceof Error ? error.message : t.signIn));
-  }, [composerOpen, locale, t.signIn]);
-
-  useEffect(() => {
-    if (!assessment?.assessmentId || !composerOpen) return;
-    const poll = async () => {
-      const response = await fetch(`/api/v1/assessments/${assessment.assessmentId}`, {
-        headers: { authorization: `Bearer ${assessment.uploadToken}`, "x-high-vive-locale": locale },
-      });
-      if (response.ok) setAssessmentState(await response.json());
+        setAssessmentState(result.latestAssessment || null);
+      } catch (error) {
+        if (active) setMessage(error instanceof Error ? error.message : t.signIn);
+      }
     };
     void poll();
     const timer = window.setInterval(poll, 4000);
-    return () => window.clearInterval(timer);
-  }, [assessment, composerOpen, locale]);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [composerOpen, locale, t.signIn]);
 
   const visible = useMemo(
     () => category === "__all__" ? passports : passports.filter((passport) => passport.category === category),
@@ -287,6 +315,13 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
   const selected = passports.find((passport) => passport.id === selectedId) || visible[0] || passports[0] || null;
   const topThree = visible.slice(0, 3);
   const podium = [topThree[1], topThree[0], topThree[2]].filter(Boolean) as Passport[];
+  const terminalCommand = platform === "windows"
+    ? `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.ps1 | iex"`
+    : `curl -fsSL https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.sh | HIGH_VIVE_SERVER=${serverOrigin} bash`;
+  const codexPrompt = locale === "ko"
+    ? `High-Vive Passport 평가를 시작해줘. jhemj/High_Vive 저장소를 열거나 내려받고 의존성을 준비한 뒤, pnpm high-vive -- prepare --server ${serverOrigin} 를 실행해. 생성된 .high-vive/assessment-instructions.md를 읽고 정직한 passport-draft.json을 작성해. 공개 preview를 나에게 보여주고 명시적 승인을 받은 뒤에만 pnpm high-vive -- submit을 실행해. 원문 transcript와 private-evidence.json은 절대 업로드하지 마.`
+    : `Start my High-Vive Passport assessment. Open or download jhemj/High_Vive, prepare its dependencies, then run pnpm high-vive -- prepare --server ${serverOrigin}. Read .high-vive/assessment-instructions.md and write an honest passport-draft.json. Show me the public preview and run pnpm high-vive -- submit only after my explicit approval. Never upload raw transcripts or private-evidence.json.`;
+  const codexDeepLink = `codex://new?originUrl=${encodeURIComponent("https://github.com/jhemj/High_Vive.git")}&prompt=${encodeURIComponent(codexPrompt)}`;
 
   function switchLocale(next: Locale) {
     setLocale(next);
@@ -313,26 +348,8 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
     } finally { setBusy(false); }
   }
 
-  async function createAssessment() {
-    setBusy(true);
-    setMessage("");
-    try {
-      const response = await fetch("/api/v1/assessments", {
-        method: "POST",
-        headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID(), "x-high-vive-locale": locale },
-        body: "{}",
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result?.error?.message || "Assessment creation failed");
-      setAssessment(result);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally { setBusy(false); }
-  }
-
   async function copyCommand() {
-    if (!assessment) return;
-    await navigator.clipboard.writeText(assessment.command);
+    await navigator.clipboard.writeText(terminalCommand);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
   }
@@ -459,8 +476,13 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
           <section className={profileReady ? "is-complete" : "is-active"}><span>01</span><h3>{t.profileStep}</h3>
             <form onSubmit={saveProfile}><label>{t.handle}<input value={handle} onChange={(event) => setHandle(event.target.value.toLowerCase())} pattern="[a-z0-9_]{3,24}" maxLength={24} required /></label><label>{t.displayName}<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={40} required /></label><button className="button button-outline" disabled={busy}>{t.saveProfile}</button></form>
           </section>
-          <section className={assessment ? "is-complete" : profileReady ? "is-active" : ""}><span>02</span><h3>{t.cliStep}</h3>
-            {!assessment ? <button className="button button-primary" disabled={!profileReady || busy} onClick={createAssessment}>{t.createAssessment}</button> : <><pre className="cli-command">{assessment.command}</pre><button className="button button-outline" onClick={copyCommand}>{copied ? t.copied : t.copyCommand}</button><p className="assessment-live"><b>{t.assessmentStatus}</b><span>{assessmentState?.assessment?.status || "DRAFT"}</span><small>{assessmentState?.commitment ? `${assessmentState.commitment.sessionCount} sessions · ${assessmentState.commitment.activeDays} active days` : t.waiting}</small></p></>}
+          <section className={assessmentState?.assessment ? "is-complete" : profileReady ? "is-active" : ""}><span>02</span><h3>{t.cliStep}</h3>
+            <p className="environment-detected"><b>{t.detectedEnvironment}</b><span>{platformLabels[platform]}</span></p>
+            <div className="platform-switch" role="tablist" aria-label={t.changeEnvironment}>{(["windows", "macos", "ubuntu"] as Platform[]).map((item) => <button key={item} type="button" role="tab" aria-selected={platform === item} className={platform === item ? "is-active" : ""} onClick={() => setPlatform(item)}>{platformLabels[item]}</button>)}</div>
+            {platform !== "ubuntu" && profileReady ? <a className="button button-primary codex-launch" href={codexDeepLink}>{t.codexStart}</a> : null}
+            {platform !== "ubuntu" ? <small className="launch-help">{t.codexStartHelp}</small> : null}
+            <div className="terminal-option"><b>{t.terminalFallback}</b><small>{t.terminalHelp}</small><pre className="cli-command">{terminalCommand}</pre><button className="button button-outline" type="button" disabled={!profileReady} onClick={copyCommand}>{copied ? t.copied : t.copyCommand}</button></div>
+            <p className="assessment-live"><b>{t.assessmentStatus}</b><span>{assessmentState?.assessment?.status || t.waiting}</span><small>{assessmentState?.commitment ? `${assessmentState.commitment.sessionCount} sessions · ${assessmentState.commitment.activeDays} active days` : t.waiting}</small></p>
           </section>
           <section className={assessmentState?.passport?.status === "PUBLISHED" ? "is-complete" : assessmentState?.passport ? "is-active" : ""}><span>03</span><h3>{t.publishStep}</h3>
             {assessmentState?.passport ? <div className="publish-preview"><dl><div><dt>HV RATING</dt><dd>{assessmentState.passport.hvRating}</dd></div><div><dt>OVR</dt><dd>{assessmentState.passport.ovr}</dd></div><div><dt>REL</dt><dd>{assessmentState.passport.reliabilityScore}</dd></div><div><dt>EVIDENCE</dt><dd>{assessmentState.passport.evidenceLevel}</dd></div></dl><button className="button button-primary" disabled={busy || assessmentState.passport.status === "PUBLISHED"} onClick={publishPassport}>{assessmentState.passport.status === "PUBLISHED" ? t.published : t.publish}</button></div> : <p>{t.waiting}</p>}

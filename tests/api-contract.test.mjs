@@ -35,3 +35,29 @@ test("leaderboard ranks in D1, not after a 50-row memory slice", async () => {
   assert.match(source, /LIMIT \? OFFSET \?/);
   assert.match(source, /pv\.evidence_level IN \('E2','E3','E4','E5'\)/);
 });
+
+test("browser onboarding polls the owned latest assessment without exposing a command", async () => {
+  const [createRoute, meRoute] = await Promise.all([
+    readFile(new URL("../app/api/v1/assessments/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/v1/me/route.ts", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(createRoute, /command:\s*`|npx high-vive/);
+  assert.match(meRoute, /latestAssessment/);
+  assert.match(meRoute, /WHERE user_id = \?/);
+  assert.doesNotMatch(meRoute, /upload_token_hash|nonce_hash|selection_seed/);
+});
+
+test("cross-platform installers and automatic CLI login are part of the release", async () => {
+  const [windowsInstaller, unixInstaller, cli] = await Promise.all([
+    readFile(new URL("../scripts/install-high-vive.ps1", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/install-high-vive.sh", import.meta.url), "utf8"),
+    readFile(new URL("../packages/cli/src/index.mjs", import.meta.url), "utf8"),
+  ]);
+  assert.match(windowsInstaller, /winget install --id OpenJS\.NodeJS\.LTS/);
+  assert.match(unixInstaller, /Darwin/);
+  assert.match(unixInstaller, /Linux/);
+  assert.match(unixInstaller, /nvm install 22/);
+  assert.match(cli, /ensureConfig/);
+  assert.match(cli, /prepareAssessment/);
+  assert.match(cli, /@openai\/codex/);
+});

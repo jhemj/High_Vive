@@ -16,8 +16,16 @@ test("renders the v1 Official/Open HV Rating leaderboard contract", async () => 
   assert.match(app, /Evidence|증거 단계/);
   assert.match(app, /Provisional Tier|잠정 티어/);
   assert.match(app, /\/api\/v1\/leaderboards/);
-  assert.match(app, /\/api\/v1\/assessments/);
+  assert.match(app, /\/api\/v1\/me/);
   assert.match(app, /publishPassport/);
+  assert.match(app, /detectPlatform/);
+  assert.match(app, /Windows/);
+  assert.match(app, /macOS/);
+  assert.match(app, /Ubuntu/);
+  assert.match(app, /codex:\/\/new/);
+  assert.match(app, /install-high-vive\.ps1/);
+  assert.match(app, /install-high-vive\.sh/);
+  assert.doesNotMatch(app, /assessment\.command|assessment\.uploadToken/);
   assert.match(profile, /PASSPORT HISTORY/);
   assert.match(connect, /CLI DEVICE LOGIN/);
   assert.match(layout, /HV Rating/);

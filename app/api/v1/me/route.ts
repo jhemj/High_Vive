@@ -10,7 +10,30 @@ export async function GET(request: Request) {
   try {
     const user = await requireBrowserUser(request);
     const profile = await findProfileByUser(user.userId);
-    return jsonResponse({ user: { id: user.userId, locale: user.locale }, profile });
+    const d1 = getD1();
+    const assessment = await d1.prepare(
+      `SELECT id, status, protocol_version AS protocolVersion, scanner_version AS scannerVersion,
+       expires_at AS expiresAt, created_at AS createdAt, updated_at AS updatedAt
+       FROM assessment_sessions WHERE user_id = ?
+       ORDER BY created_at DESC LIMIT 1`,
+    ).bind(user.userId).first<{ id: string; status: string }>();
+    const [commitment, passport] = assessment ? await Promise.all([
+      d1.prepare(
+        `SELECT history_root AS historyRoot, session_count AS sessionCount, record_count AS recordCount,
+         active_days AS activeDays, date_from AS dateFrom, date_to AS dateTo, created_at AS createdAt
+         FROM evidence_commitments WHERE assessment_id = ? LIMIT 1`,
+      ).bind(assessment.id).first(),
+      d1.prepare(
+        `SELECT id, status, evidence_level AS evidenceLevel, reliability_score AS reliabilityScore,
+         hv_rating AS hvRating, ovr, published_at AS publishedAt, revoked_at AS revokedAt
+         FROM passport_versions WHERE assessment_id = ? LIMIT 1`,
+      ).bind(assessment.id).first(),
+    ]) : [null, null];
+    return jsonResponse({
+      user: { id: user.userId, locale: user.locale },
+      profile,
+      latestAssessment: assessment ? { assessment, commitment, passport } : null,
+    });
   } catch (error) {
     return errorResponse(error);
   }

@@ -43,7 +43,6 @@ export async function POST(request: Request) {
     ).run();
     await auditEvent(user.userId, "ASSESSMENT_CREATED", "assessment", assessmentId, { protocolVersion: PROTOCOL_VERSION });
 
-    const origin = new URL(request.url).origin;
     const response = {
       assessmentId,
       uploadToken,
@@ -51,7 +50,6 @@ export async function POST(request: Request) {
       scannerVersion: SCANNER_VERSION,
       calibrationVersion: CALIBRATION_VERSION,
       expiresAt,
-      command: `npx high-vive assess --server ${origin} --assessment ${assessmentId} --token ${uploadToken}`,
     };
     if (idempotencyKey) {
       await d1.prepare(

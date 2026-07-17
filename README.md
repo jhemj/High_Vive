@@ -23,15 +23,25 @@ nickname-based upserts and official raw-JSON submission are disabled.
 
 ## Create a Passport
 
-Once the site is running, create a profile and copy the command shown by the
-Passport flow:
+Open **Create my Passport** on the live site. The browser detects Windows,
+macOS, or Ubuntu and selects the matching path. Windows and macOS users can
+start the guided workflow in the Codex app; every platform also has a one-line
+installer that prepares Node.js and the CLI when necessary.
 
-```bash
-npx high-vive login
-npx high-vive assess
+Windows PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.ps1 | iex"
 ```
 
-`high-vive assess` scans `CODEX_HOME/sessions` and `archived_sessions` as a
+macOS or Ubuntu:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.sh | bash
+```
+
+The CLI opens one-time High-Vive login automatically. `high-vive assess` scans
+`CODEX_HOME/sessions` and `archived_sessions` as a
 stream, commits a deterministic evidence root, receives a one-time server
 challenge, selects reproducible samples, runs the local Codex Witness, shows a
 preview, and submits only after approval.
@@ -43,7 +53,7 @@ files do not leave the device by default. Generated private evidence remains in
 Available commands:
 
 ```text
-high-vive login | doctor | assess | scan | status | preview | submit | logout
+high-vive login | doctor | prepare | assess | scan | status | preview | submit | logout
 ```
 
 ## Local development

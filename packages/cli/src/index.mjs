@@ -40,6 +40,16 @@ async function loadConfig(optional = false) {
   catch { if (optional) return {}; throw new Error("Run `high-vive login` first."); }
 }
 
+async function ensureConfig(args) {
+  let config = await loadConfig(true);
+  if (!config.token) {
+    console.log("High-Vive login is required. Opening the one-time device login…");
+    await login(args);
+    config = await loadConfig();
+  }
+  return config;
+}
+
 async function saveConfig(config) {
   await mkdir(CONFIG_DIR, { recursive: true });
   await writeFile(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
@@ -132,9 +142,18 @@ function witnessInstructions({ evidence, samples, draftPath }) {
 
 async function runCodex(instructionsPath, draftPath) {
   const prompt = await readFile(instructionsPath, "utf8");
-  const args = ["exec", "--sandbox", "read-only", "--skip-git-repo-check", "-o", draftPath, prompt];
+  const direct = spawnSync("codex", ["--version"], { encoding: "utf8", shell: process.platform === "win32" });
+  const runner = direct.status === 0
+    ? { command: "codex", prefix: [] }
+    : spawnSync("npx", ["--version"], { encoding: "utf8", shell: process.platform === "win32" }).status === 0
+      ? { command: "npx", prefix: ["--yes", "@openai/codex"] }
+      : null;
+  if (!runner) {
+    throw new Error("Codex was not found. Install the Codex app or Codex CLI, then run this command again.");
+  }
+  const args = [...runner.prefix, "exec", "--sandbox", "read-only", "--skip-git-repo-check", "-o", draftPath, prompt];
   await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn("codex", args, { stdio: "inherit", shell: process.platform === "win32" });
+    const child = spawn(runner.command, args, { stdio: "inherit", shell: process.platform === "win32" });
     child.on("error", rejectPromise);
     child.on("exit", (code) => code === 0 ? resolvePromise() : rejectPromise(new Error(`Codex exited with code ${code}.`)));
   });
@@ -148,7 +167,21 @@ async function startAssessment(args, token, server) {
 }
 
 async function assess(args) {
-  const config = await loadConfig(Boolean(args.token));
+  const prepared = await prepareAssessment(args);
+  if (!prepared) return;
+  const { directory, draftPath, instructionsPath } = prepared;
+  console.log("Starting local Codex Witness in read-only mode…");
+  await runCodex(instructionsPath, draftPath);
+  await preview({ ...args, output: directory });
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await rl.question("Submit this public Passport manifest? [y/N] ");
+  rl.close();
+  if (!/^y(?:es)?$/i.test(answer.trim())) { console.log("Submission cancelled. Local files were kept."); return; }
+  await submit({ ...args, output: directory });
+}
+
+async function prepareAssessment(args) {
+  const config = args.token ? await loadConfig(true) : await ensureConfig(args);
   const server = String(args.server || config.server || DEFAULT_SERVER);
   const token = String(args.token || config.token || "");
   if (!token) throw new Error("Run `high-vive login` or pass --token.");
@@ -156,7 +189,7 @@ async function assess(args) {
   const authToken = assessment.uploadToken || token;
   const directory = outputDirectory(args);
   const evidence = await runScan(args);
-  if (args["dry-run"]) { console.log("Dry run complete. Nothing was uploaded."); return; }
+  if (args["dry-run"]) { console.log("Dry run complete. Nothing was uploaded."); return null; }
   await api(server, `/api/v1/assessments/${assessment.assessmentId}/commit`, {
     method: "PUT", token: authToken, body: JSON.stringify(evidence.commitment),
   });
@@ -179,14 +212,9 @@ async function assess(args) {
   const instructionsPath = join(directory, "assessment-instructions.md");
   const instructions = witnessInstructions({ evidence, samples, draftPath });
   await writeFile(instructionsPath, instructions, "utf8");
-  console.log("Starting local Codex Witness in read-only mode…");
-  await runCodex(instructionsPath, draftPath);
-  await preview({ ...args, output: directory });
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const answer = await rl.question("Submit this public Passport manifest? [y/N] ");
-  rl.close();
-  if (!/^y(?:es)?$/i.test(answer.trim())) { console.log("Submission cancelled. Local files were kept."); return; }
-  await submit({ ...args, output: directory });
+  console.log(`Assessment prepared: ${instructionsPath}`);
+  console.log("Ask Codex to read the instructions, write passport-draft.json, preview it, and submit only after your approval.");
+  return { directory, draftPath, instructionsPath };
 }
 
 async function preview(args) {
@@ -241,6 +269,7 @@ function help() {
   console.log(`High-Vive CLI ${PROTOCOL_VERSION}\n\n` +
     `  high-vive login [--server URL]\n` +
     `  high-vive doctor [--codex-home PATH]\n` +
+    `  high-vive prepare [--output PATH] [--codex-home PATH]\n` +
     `  high-vive assess [--output PATH] [--codex-home PATH] [--dry-run]\n` +
     `  high-vive scan [--output PATH] [--codex-home PATH] [--dry-run]\n` +
     `  high-vive status --assessment ID\n` +
@@ -253,6 +282,7 @@ export async function main(argv = process.argv.slice(2)) {
   const { command, args } = parseArgs(argv);
   if (command === "login") return login(args);
   if (command === "doctor") return doctor(args);
+  if (command === "prepare") return prepareAssessment(args);
   if (command === "assess") return assess(args);
   if (command === "scan") return runScan(args);
   if (command === "status") return status(args);
