@@ -34,3 +34,13 @@ test("profile category and throttled rating refresh have deploy-time schema", as
   assert.doesNotMatch(migration, /CREATE TABLE `browser_sessions`/);
   assert.doesNotMatch(migration, /CREATE TABLE `passkey_credentials`/);
 });
+
+test("the first live Passport reset preserves the account while clearing its assessment", async () => {
+  const migration = await readFile(new URL("../drizzle/0006_reset_first_live_passport.sql", import.meta.url), "utf8");
+  assert.match(migration, /psp_d95d4fe0c8eb4d8d887390ea2d02dbd9/);
+  assert.match(migration, /current_passport_id` = NULL/);
+  assert.match(migration, /DELETE FROM `passport_versions`/);
+  assert.match(migration, /DELETE FROM `assessment_sessions`/);
+  assert.doesNotMatch(migration, /DELETE FROM `users`/);
+  assert.doesNotMatch(migration, /DELETE FROM `profiles`/);
+});

@@ -303,6 +303,7 @@ function evidenceClass(level: string) {
 
 const platformLabels: Record<Platform, string> = { windows: "Windows", macos: "macOS", ubuntu: "Ubuntu" };
 const DEFAULT_SERVER = "https://high-vive-league.ngmptdz.chatgpt.site";
+const LEADERBOARD_CACHE_KEY = "league-v13";
 
 function detectPlatform(): Platform {
   if (typeof navigator === "undefined") return "windows";
@@ -418,7 +419,7 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
 
   useEffect(() => {
     let active = true;
-    const params = new URLSearchParams({ pageSize: "100", v: String(leaderboardVersion) });
+    const params = new URLSearchParams({ pageSize: "100", v: `${LEADERBOARD_CACHE_KEY}-${leaderboardVersion}` });
     if (categoryFilter) params.set("category", categoryFilter);
     if (countryFilter) params.set("country", countryFilter);
     fetch(`/api/v1/leaderboards?${params}`, { headers: { "x-high-vive-locale": locale } })

@@ -43,6 +43,13 @@
       "when": 1784340000000,
       "tag": "0005_lovely_iceman",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1784343600000,
+      "tag": "0006_reset_first_live_passport",
+      "breakpoints": true
     }
   ]
 }
