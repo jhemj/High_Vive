@@ -1,4 +1,3 @@
-
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
 import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
