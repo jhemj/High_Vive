@@ -1,3 +1,4 @@
+
 import { getD1 } from "../../../../../db";
 import { passportSelectSql, serializePassportRow } from "../../../../../packages/shared/passports";
 import { ApiError, errorResponse, jsonResponse, normalizeHandle } from "../../../../../packages/shared/server";
@@ -26,7 +27,7 @@ export async function GET(_request: Request, context: { params: Promise<{ handle
       profile: { ...profile, languages: JSON.parse(String(profile.languagesJson ?? "[]")), links: JSON.parse(String(profile.linksJson ?? "[]")) },
       currentPassport: passports.find((passport: { id: string }) => passport.id === profile.currentPassportId) ?? passports[0] ?? null,
       passports,
-    }, 200, { "cache-control": "public, max-age=30, stale-while-revalidate=60" });
+    });
   } catch (error) {
     return errorResponse(error);
   }
