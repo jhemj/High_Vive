@@ -1,4 +1,3 @@
-
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -350,7 +349,412 @@ function localized(value: LocalizedText | undefined, locale: Locale) {
 }
 
 function categoryLabel(category: string, locale: Locale) {
-  const item = CATEGORIES.find((candidate) =>…6207 tokens truncated…me="country-board-intro"><div><strong>{t.countryPlayerRank}</strong><p>{t.countryPlayerRankHelp}</p></div><button className="button button-outline" type="button" onClick={() => setStandingsView("country")}>{t.viewCountryRank}</button></div>
+  const item = CATEGORIES.find((candidate) => candidate.key === category);
+  return item?.[locale] || category;
+}
+
+function tierLabel(tier: string, locale: Locale) {
+  return locale === "ko" ? tierKo[tier] || tier : tier;
+}
+
+function dateLabel(value: string | null, locale: Locale) {
+  if (!value) return "--";
+  return new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-US", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
+}
+
+function RatingHistoryChart({ history, locale }: { history: PassportHistoryPoint[]; locale: Locale }) {
+  const entries = history.slice(0, 16).reverse();
+  if (!entries.length) return null;
+  const width = 640;
+  const height = 190;
+  const paddingX = 30;
+  const paddingY = 24;
+  const values = entries.map((item) => item.hvRating);
+  const floor = Math.max(0, Math.min(...values) - 40);
+  const ceiling = Math.min(1000, Math.max(...values) + 40);
+  const range = Math.max(80, ceiling - floor);
+  const points = entries.map((item, index) => {
+    const x = entries.length === 1 ? width / 2 : paddingX + index * ((width - paddingX * 2) / (entries.length - 1));
+    const y = height - paddingY - ((item.hvRating - floor) / range) * (height - paddingY * 2);
+    return { ...item, x, y };
+  });
+  return <div className="rating-history-chart">
+    <svg role="img" aria-label={locale === "ko" ? "Passport별 HV Rating 변화" : "HV Rating change across Passports"} viewBox={`0 0 ${width} ${height}`}>
+      <line x1={paddingX} y1={paddingY} x2={paddingX} y2={height - paddingY} />
+      <line x1={paddingX} y1={height - paddingY} x2={width - paddingX} y2={height - paddingY} />
+      <polyline points={points.map((point) => `${point.x},${point.y}`).join(" ")} />
+      {points.map((point) => <g key={point.id}>
+        <circle cx={point.x} cy={point.y} r="5"><title>{`${point.hvRating} · ${dateLabel(point.publishedAt, locale)}`}</title></circle>
+        <text x={point.x} y={point.y - 12} textAnchor="middle">{point.hvRating}</text>
+      </g>)}
+    </svg>
+    <div className="rating-history-dates"><span>{dateLabel(entries[0]?.publishedAt ?? null, locale)}</span><span>{dateLabel(entries.at(-1)?.publishedAt ?? null, locale)}</span></div>
+  </div>;
+}
+
+function evidenceClass(level: string) {
+  return `evidence-${level.toLowerCase()}`;
+}
+
+const platformLabels: Record<Platform, string> = { windows: "Windows", macos: "macOS", ubuntu: "Ubuntu" };
+const DEFAULT_SERVER = "https://high-vive-league.ngmptdz.chatgpt.site";
+const LEADERBOARD_CACHE_KEY = "league-v13";
+
+function detectPlatform(): Platform {
+  if (typeof navigator === "undefined") return "windows";
+  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+  const value = `${nav.userAgentData?.platform || ""} ${navigator.platform || ""} ${navigator.userAgent || ""}`.toLowerCase();
+  if (value.includes("mac")) return "macos";
+  if (value.includes("linux") || value.includes("ubuntu")) return "ubuntu";
+  return "windows";
+}
+
+function friendlyAssessmentStatus(status: string | undefined, locale: Locale) {
+  if (!status) return locale === "ko" ? "평가 시작을 기다리고 있어요" : "Waiting for the assessment to start";
+  const labels: Record<string, LocalizedText> = {
+    DRAFT: { ko: "평가 준비 중", en: "Preparing your assessment" },
+    COMMITTED: { ko: "작업 이력 확인 완료", en: "Work history confirmed" },
+    CHALLENGED: { ko: "AI가 작업 이력을 평가하는 중", en: "Your AI is evaluating your work history" },
+    ASSESSED: { ko: "평가 결과 준비 완료", en: "Assessment result ready" },
+    SUBMITTED: { ko: "리더보드 등록 처리 중", en: "Adding your result to the leaderboard" },
+    PUBLISHED: { ko: "리더보드 등록 완료", en: "Added to the leaderboard" },
+    EXPIRED: { ko: "평가 시간이 지나 다시 시작해야 해요", en: "This assessment expired—please start again" },
+    FAILED: { ko: "평가를 완료하지 못했어요", en: "The assessment could not be completed" },
+    CANCELLED: { ko: "평가가 취소됐어요", en: "Assessment cancelled" },
+    REVOKED: { ko: "공개가 중단된 평가예요", en: "This assessment is no longer published" },
+  };
+  return labels[status]?.[locale] || status;
+}
+
+function ToolBadges({ tools = [] }: { tools?: string[] }) {
+  const normalized = Array.from(new Set(tools.length ? tools : ["codex"]));
+  return <span className="tool-badges">{normalized.map((tool) => <b className={`tool-badge tool-${tool}`} key={tool} title={tool === "codex" ? "Codex" : tool}>{tool === "codex" ? "CX" : tool === "claude-code" ? "CL" : tool.slice(0, 2).toUpperCase()}</b>)}</span>;
+}
+
+export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
+  const [locale, setLocale] = useState<Locale>(initialLocale);
+  const [boardMode, setBoardMode] = useState<BoardMode>("overall");
+  const [category, setCategory] = useState("__all__");
+  const [passports, setPassports] = useState<Passport[]>([]);
+  const [participantTotal, setParticipantTotal] = useState(0);
+  const [leaderboardVersion, setLeaderboardVersion] = useState(0);
+  const [countries, setCountries] = useState<CountryRanking[]>([]);
+  const [categoryStandings, setCategoryStandings] = useState<CategoryRanking[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [standingsView, setStandingsView] = useState<"country" | "category" | null>(null);
+  const [selectedId, setSelectedId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [viewer, setViewer] = useState<{ id: string; displayName: string; provider: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [handle, setHandle] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [country, setCountry] = useState("");
+  const [profileCategory, setProfileCategory] = useState("");
+  const [profileIsPublic, setProfileIsPublic] = useState(true);
+  const [profileReady, setProfileReady] = useState(false);
+  const [assessmentState, setAssessmentState] = useState<AssessmentState | null>(null);
+  const [passportOverview, setPassportOverview] = useState<PassportOverview>({ current: null, highest: null, history: [], latestAssessedAt: null, nextEligibleAt: null, canAssessNow: true });
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [platform, setPlatform] = useState<Platform>("windows");
+  const [witnessTool, setWitnessTool] = useState<WitnessTool>("codex");
+  const [serverOrigin, setServerOrigin] = useState(DEFAULT_SERVER);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const t = copy[locale];
+  const categoryFilter = boardMode === "category" && category !== "__all__" ? category : "";
+  const countryFilter = boardMode === "country" ? selectedCountry : "";
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const stored = window.localStorage.getItem("high-vive-locale");
+      if (stored === "ko" || stored === "en") setLocale(stored);
+      setPlatform(detectPlatform());
+      setServerOrigin(window.location.origin);
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("passport") === "1") {
+        setComposerOpen(true);
+        params.delete("passport");
+        const query = params.toString();
+        window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const refreshViewer = useCallback(async () => {
+    try {
+      const response = await fetch("/api/v1/me", { headers: { "x-high-vive-locale": locale }, cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok) {
+        setViewer(null);
+        return;
+      }
+      setViewer(result.user);
+      if (result.profile) {
+        setHandle(result.profile.handle);
+        setDisplayName(result.profile.displayName);
+        setCountry(result.profile.country || result.suggestedCountry || "");
+        setProfileCategory(result.profile.preferredCategory || "");
+        setProfileIsPublic(Boolean(result.profile.isPublic));
+        setProfileReady(true);
+      } else {
+        setCountry(result.suggestedCountry || "");
+      }
+      setAssessmentState(result.latestAssessment || null);
+      setPassportOverview(result.passportOverview || { current: null, highest: null, history: [], latestAssessedAt: null, nextEligibleAt: null, canAssessNow: true });
+    } catch {
+      setViewer(null);
+    } finally {
+      setAuthChecked(true);
+    }
+  }, [locale]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void refreshViewer(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [refreshViewer]);
+
+  useEffect(() => {
+    let active = true;
+    const params = new URLSearchParams({ pageSize: "100", v: `${LEADERBOARD_CACHE_KEY}-${leaderboardVersion}` });
+    if (categoryFilter) params.set("category", categoryFilter);
+    if (countryFilter) params.set("country", countryFilter);
+    fetch(`/api/v1/leaderboards?${params}`, { headers: { "x-high-vive-locale": locale } })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result?.error?.message || "Leaderboard unavailable");
+        if (active) {
+          setPassports(result.passports || []);
+          setParticipantTotal(Number(result.pagination?.total || 0));
+          setCountries(result.countries || []);
+          setCategoryStandings(result.categoryStandings || []);
+          setSelectedCountry((current) => result.countries?.some((item: CountryRanking) => item.country === current) ? current : result.countries?.[0]?.country || "");
+          setSelectedId((current) => result.passports?.some((item: Passport) => item.id === current) ? current : result.passports?.[0]?.id || "");
+        }
+      })
+      .catch((error) => active && setMessage(error instanceof Error ? error.message : String(error)))
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [locale, assessmentState?.passport?.status, leaderboardVersion, categoryFilter, countryFilter]);
+
+  useEffect(() => {
+    const viewerId = viewer?.id;
+    if (!composerOpen || !viewerId) return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const response = await fetch("/api/v1/me", { headers: { "x-high-vive-locale": locale }, cache: "no-store" });
+        const result = await response.json();
+        if (!response.ok) {
+          if (response.status === 401) setViewer(null);
+          throw new Error(result?.error?.message || t.signIn);
+        }
+        if (!active) return;
+        if (result.profile) {
+          setHandle(result.profile.handle);
+          setDisplayName(result.profile.displayName);
+          setCountry(result.profile.country || result.suggestedCountry || "");
+          setProfileCategory(result.profile.preferredCategory || "");
+          setProfileIsPublic(Boolean(result.profile.isPublic));
+          setProfileReady(true);
+        }
+        setAssessmentState(result.latestAssessment || null);
+        setPassportOverview(result.passportOverview || { current: null, highest: null, history: [], latestAssessedAt: null, nextEligibleAt: null, canAssessNow: true });
+      } catch (error) {
+        if (active) setMessage(error instanceof Error ? error.message : t.signIn);
+      }
+    };
+    void poll();
+    const timer = window.setInterval(poll, 4000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [composerOpen, locale, t.signIn, viewer?.id]);
+
+  const visible = useMemo(() => {
+    if (boardMode === "category") return passports.filter((passport) => passport.category === category);
+    if (boardMode === "country") return passports.filter((passport) => passport.country === selectedCountry);
+    return passports;
+  }, [boardMode, category, passports, selectedCountry]);
+  const selected = visible.find((passport) => passport.id === selectedId) || visible[0] || null;
+  const topThree = visible.slice(0, 3);
+  const podium = [topThree[1], topThree[0], topThree[2]].filter(Boolean) as Passport[];
+  const countryOptions = useMemo(
+    () => [...COUNTRY_CODES].sort((a, b) => countryLabel(a, locale).localeCompare(countryLabel(b, locale), locale === "ko" ? "ko" : "en")),
+    [locale],
+  );
+  const standingsRows = standingsView === "country"
+    ? countries.map((item) => ({ ...item, key: item.country, label: countryLabel(item.country, locale).replace(/^\S+\s/, ""), icon: countryFlag(item.country) }))
+    : standingsView === "category"
+      ? categoryStandings.map((item) => ({ ...item, key: item.category, label: categoryLabel(item.category, locale), icon: categoryLabel(item.category, locale).slice(0, 2).toUpperCase() }))
+      : [];
+  const medalStandings = [standingsRows[1], standingsRows[0], standingsRows[2]].filter(Boolean);
+  const terminalCommand = platform === "windows"
+    ? `powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:HIGH_VIVE_SERVER='${serverOrigin}'; $env:HIGH_VIVE_AGENT='${witnessTool}'; irm https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.ps1 | iex"`
+    : `curl -fsSL https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.sh | HIGH_VIVE_SERVER='${serverOrigin}' HIGH_VIVE_AGENT='${witnessTool}' bash`;
+  const assessmentConsent = locale === "ko"
+    ? `이 요청을 전송함으로써, 평가에 필요한 비민감 파생 메타데이터(세션 수, 활동 일수, 평가 기간, 집계 신호, evidence commitment와 hash, challenge proof)를 ${serverOrigin}에 전송하고, 공개 Passport 초안(요약, 분야, 점수, 평가 범위)을 짧게 preview한 뒤 제출·공개하는 것을 명시적으로 승인한다. 이 승인 범위에서는 추가 확인을 요청하지 말고 계속 진행해.`
+    : `By sending this request, I explicitly authorize the transfer of non-sensitive derived assessment metadata (session count, active days, assessment period, aggregate signals, evidence commitments and hashes, and challenge proofs) to ${serverOrigin}, followed by a short preview and the submission and publication of the public Passport draft (summary, category, scores, and assessment scope). Continue within this approved scope without asking for another confirmation.`;
+  const assessmentSafety = locale === "ko"
+    ? `원문 transcript, 프롬프트나 도구 실행 원문, 절대 경로, secret, private-evidence.json은 절대 전송하거나 업로드하지 마. 공개 진단에는 프로젝트 주제·이름·업종·기술 스택·기능 내용을 절대 포함하지 말고 바이브코딩 행동만 서술해. prepare가 실패하거나 서버가 평가를 거절하면 이전 .high-vive 평가 파일을 재사용하거나 제출하지 말고, 실패 이유와 다음 평가 가능 시점만 알려줘.`
+    : `Never transmit or upload raw transcripts, raw prompts or tool execution content, absolute paths, secrets, or private-evidence.json. Never include project topics, names, industries, technology stacks, or feature content in the public diagnosis; describe vibe-coding behavior only. If prepare fails or the server rejects the assessment, do not reuse or submit files from an earlier .high-vive assessment; report only the reason and the next eligible assessment time.`;
+  const codexPrompt = locale === "ko"
+    ? `High-Vive Passport 평가를 시작해줘. ${assessmentConsent} jhemj/High_Vive 저장소를 열거나 내려받고 의존성을 준비한 뒤, pnpm high-vive -- prepare --server ${serverOrigin} --agent codex 를 실행해. 생성된 .high-vive/assessment-instructions.md를 읽고 정직한 passport-draft.json을 작성해. 공개 preview를 짧게 보여준 다음 pnpm high-vive -- submit을 바로 실행해. ${assessmentSafety}`
+    : `Start my High-Vive Passport assessment. ${assessmentConsent} Open or download jhemj/High_Vive, prepare its dependencies, then run pnpm high-vive -- prepare --server ${serverOrigin} --agent codex. Read .high-vive/assessment-instructions.md and write an honest passport-draft.json. Show a short public preview, then run pnpm high-vive -- submit immediately. ${assessmentSafety}`;
+  const codexDeepLink = `codex://new?originUrl=${encodeURIComponent("https://github.com/jhemj/High_Vive.git")}&prompt=${encodeURIComponent(codexPrompt)}`;
+  const claudePrompt = locale === "ko"
+    ? `High-Vive Passport 평가를 시작해줘. ${assessmentConsent} 안전한 로컬 작업 폴더에서 jhemj/High_Vive 저장소를 열거나 내려받고 의존성을 준비한 뒤, pnpm high-vive -- prepare --server ${serverOrigin} --agent claude-code 를 실행해. 생성된 .high-vive/assessment-instructions.md를 읽고 정직한 passport-draft.json을 작성해. 공개 preview를 짧게 보여준 다음 pnpm high-vive -- submit을 바로 실행해. ${assessmentSafety}`
+    : `Start my High-Vive Passport assessment. ${assessmentConsent} In a safe local workspace, open or download jhemj/High_Vive, prepare its dependencies, then run pnpm high-vive -- prepare --server ${serverOrigin} --agent claude-code. Read .high-vive/assessment-instructions.md and write an honest passport-draft.json. Show a short public preview, then run pnpm high-vive -- submit immediately. ${assessmentSafety}`;
+  const claudeDeepLink = `claude://code/new?q=${encodeURIComponent(claudePrompt)}`;
+
+  function switchLocale(next: Locale) {
+    setLocale(next);
+    window.localStorage.setItem("high-vive-locale", next);
+  }
+
+  function openComposer() {
+    setMessage("");
+    setSettingsOpen(false);
+    setComposerOpen(true);
+  }
+
+  function openSettings() {
+    setMessage("");
+    setComposerOpen(false);
+    setDeleteConfirmOpen(false);
+    setDeleteConfirmation("");
+    setSettingsOpen(true);
+  }
+
+  function switchBoard(next: BoardMode) {
+    setBoardMode(next);
+    if (next === "category" && category === "__all__") setCategory(CATEGORIES[0]?.key || "other");
+  }
+
+  async function signOut() {
+    await fetch("/api/v1/auth/logout", { method: "POST" });
+    if (viewer?.provider === "sites") {
+      window.location.assign("/signout-with-chatgpt?return_to=%2F");
+      return;
+    }
+    window.location.assign("/");
+  }
+
+  async function saveProfile(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/v1/me/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-high-vive-locale": locale },
+        body: JSON.stringify({ handle, displayName, isPublic: true }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error?.message || "Profile update failed");
+      setProfileReady(true);
+      setHandle(result.profile.handle);
+      setDisplayName(result.profile.displayName);
+      setCountry(result.profile.country || country);
+      setProfileCategory(result.profile.preferredCategory || "");
+      setProfileIsPublic(Boolean(result.profile.isPublic));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally { setBusy(false); }
+  }
+
+  async function saveSettings(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/v1/me/profile", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-high-vive-locale": locale },
+        body: JSON.stringify({ handle, displayName, country, preferredCategory: profileCategory, isPublic: profileIsPublic }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error?.message || "Profile update failed");
+      setCountry(result.profile.country || "");
+      setProfileCategory(result.profile.preferredCategory || "");
+      setProfileIsPublic(Boolean(result.profile.isPublic));
+      setSettingsOpen(false);
+      setLeaderboardVersion((value) => value + 1);
+      await refreshViewer();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally { setBusy(false); }
+  }
+
+  async function deleteAccount() {
+    if (deleteConfirmation !== handle) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/v1/me", {
+        method: "DELETE",
+        headers: { "content-type": "application/json", "x-high-vive-locale": locale },
+        body: JSON.stringify({ confirmation: deleteConfirmation }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.error?.message || "Account deletion failed");
+      if (viewer?.provider === "sites") {
+        window.location.assign("/signout-with-chatgpt?return_to=%2F");
+        return;
+      }
+      window.location.assign("/");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+      setBusy(false);
+    }
+  }
+
+  async function copyCommand() {
+    await navigator.clipboard.writeText(terminalCommand);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  return (
+    <div className="high-vive-app">
+      <header className="site-header">
+        <a className="brand" href="#top"><span className="brand-mark">HV</span><span className="brand-word">HIGH-VIVE</span><span className="brand-ko">AI WITNESS LEAGUE</span></a>
+        <div className="header-actions">
+          <div className="locale-switch" role="group" aria-label="Language">
+            <button className={locale === "ko" ? "is-active" : ""} onClick={() => switchLocale("ko")}>KO</button>
+            <button className={locale === "en" ? "is-active" : ""} onClick={() => switchLocale("en")}>EN</button>
+          </div>
+          {viewer ? <button className="button button-quiet header-settings" type="button" onClick={profileReady ? openSettings : openComposer}>{t.personalSettings}</button> : null}
+          {viewer ? <span className="header-account" title={viewer.displayName}><small>{t.signedIn}</small><b>{viewer.displayName}</b><span className="header-account-actions"><button type="button" onClick={signOut}>{t.signOut}</button></span></span> : <button className="button button-quiet header-signin" type="button" onClick={openComposer}>{t.signInButton}</button>}
+          <button className="button button-outline header-cta" onClick={openComposer}>{t.register}</button>
+        </div>
+      </header>
+
+      <main id="top">
+        <section className="league-dashboard" aria-labelledby="leaderboard-title">
+          <div className="ranking-main">
+            <div className="league-titlebar">
+              <div><p className="season-kicker">{t.benchmark}</p><h1 id="leaderboard-title">{t.title}</h1><p className="leaderboard-subtitle">{t.subtitle}</p></div>
+              <dl className="season-meta">
+                <div><dt>{t.participants}</dt><dd>{participantTotal}</dd></div>
+                <div><dt>{t.rankBasis}</dt><dd>HV</dd></div>
+              </dl>
+            </div>
+
+            <div className="leaderboard-mode-tabs" role="tablist" aria-label={locale === "ko" ? "리더보드 보기" : "Leaderboard view"}>
+              <button type="button" role="tab" aria-selected={boardMode === "overall"} className={boardMode === "overall" ? "is-active" : ""} onClick={() => switchBoard("overall")}>{t.overallBoard}</button>
+              <button type="button" role="tab" aria-selected={boardMode === "category"} className={boardMode === "category" ? "is-active" : ""} onClick={() => switchBoard("category")}>{t.categoryBoard}</button>
+              <button type="button" role="tab" aria-selected={boardMode === "country"} className={boardMode === "country" ? "is-active" : ""} onClick={() => switchBoard("country")}>{t.countryBoard}</button>
+            </div>
+
+            {boardMode === "category" ? <>
+              <div className="country-board-intro"><div><strong>{t.categoryPlayerRank}</strong><p>{t.categoryPlayerRankHelp}</p></div><button className="button button-outline" type="button" onClick={() => setStandingsView("category")}>{t.viewCategoryRank}</button></div>
+              <div className="field-tabs aggregate-filter-tabs" aria-label="Category filter">{CATEGORIES.map((item) => <button key={item.key} className={category === item.key ? "is-active" : ""} onClick={() => setCategory(item.key)}>{item[locale]}</button>)}</div>
+            </> : null}
+            {boardMode === "country" ? <>
+              <div className="country-board-intro"><div><strong>{t.countryPlayerRank}</strong><p>{t.countryPlayerRankHelp}</p></div><button className="button button-outline" type="button" onClick={() => setStandingsView("country")}>{t.viewCountryRank}</button></div>
               <div className="field-tabs aggregate-filter-tabs" aria-label={locale === "ko" ? "국가 선택" : "Country filter"}>{countries.map((nation) => <button key={nation.country} className={selectedCountry === nation.country ? "is-active" : ""} onClick={() => setSelectedCountry(nation.country)}>{countryFlag(nation.country)} {countryLabel(nation.country, locale).replace(/^\S+\s/, "")}</button>)}</div>
             </> : null}
 
