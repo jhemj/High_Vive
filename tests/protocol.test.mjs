@@ -1,9 +1,10 @@
+
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  METRICS, PROTOCOL_VERSION, calculateCalibratedOvr,
+  METRICS, PROTOCOL_VERSION, buildSkillOnlyPublicProfile, calculateCalibratedOvr,
   calculateEffectiveReliability, calculateHvRating, calculateReliability, calculateTier, canTransition, evidenceLevelFor,
-  isOfficialPassport, isValidHandle, validateMetricReports,
+  isOfficialPassport, isValidHandle, skillOnlyMetricRationale, validateMetricReports,
 } from "../packages/protocol/runtime.mjs";
 
 const scores = Object.fromEntries(METRICS.map((metric) => [metric.key, 80]));
@@ -62,4 +63,17 @@ test("official eligibility separates skill and trust", () => {
   assert.equal(isOfficialPassport(passport), true);
   assert.equal(isOfficialPassport({ ...passport, reliabilityScore: 59.9 }), false);
   assert.equal(isOfficialPassport({ ...passport, isDemo: true }), false);
+});
+
+test("public diagnosis is rebuilt only from vibe-coding metric scores", () => {
+  const input = { ...scores, contextPackaging: 97, aiDelegation: 96, verificationDiscipline: 95, projectName: "Secret Billing React App" };
+  const publicProfile = buildSkillOnlyPublicProfile(input);
+  const serialized = JSON.stringify(publicProfile);
+  assert.equal(publicProfile.subfields.length, 0);
+  assert.equal(publicProfile.strengths.ko.length, 3);
+  assert.equal(publicProfile.weaknesses.en.length, 3);
+  assert.match(publicProfile.summary.ko, /바이브코딩 행동 패턴만/);
+  assert.match(publicProfile.summary.en, /vibe-coding behavior only/);
+  assert.doesNotMatch(serialized, /Secret Billing|React App/i);
+  assert.match(skillOnlyMetricRationale("toolFluency", 82), /Project content was excluded/);
 });
