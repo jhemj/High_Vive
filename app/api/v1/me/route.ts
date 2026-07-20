@@ -1,4 +1,3 @@
-
 import { getD1 } from "../../../../db";
 import {
   ApiError, auditEvent, countryFromRequest, enforceRateLimit, errorResponse, findProfileByUser, jsonResponse, nowIso,
