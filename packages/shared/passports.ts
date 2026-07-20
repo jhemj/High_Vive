@@ -1,4 +1,3 @@
-
 import { buildSkillOnlyPublicProfile, evidenceLabel, isOfficialPassport } from "../protocol/runtime.mjs";
 
 function parseJson(value: unknown, fallback: unknown) {
