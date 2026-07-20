@@ -1,4 +1,3 @@
-
 UPDATE `profiles`
 SET `current_passport_id` = NULL,
     `updated_at` = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
