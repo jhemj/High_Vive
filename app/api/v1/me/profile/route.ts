@@ -1,3 +1,4 @@
+
 import { getD1 } from "../../../../../db";
 import {
   ApiError, auditEvent, cleanList, cleanText, countryFromRequest, enforceRateLimit, errorResponse,
@@ -34,7 +35,10 @@ export async function PATCH(request: Request) {
     const timezone = cleanText(payload.timezone, 60);
     const languages = cleanList(payload.languages, 8, 24);
     const links = cleanList(payload.links, 5, 200).filter((link) => /^https:\/\//i.test(link));
-    const isPublic = payload.isPublic !== false;
+    if (payload.isPublic !== undefined && typeof payload.isPublic !== "boolean") {
+      throw new ApiError(400, "INVALID_VISIBILITY", "Passport visibility must be public or private.");
+    }
+    const isPublic = payload.isPublic === undefined ? Boolean(current?.isPublic ?? true) : payload.isPublic;
     const d1 = getD1();
     const now = nowIso();
 
@@ -75,7 +79,10 @@ export async function PATCH(request: Request) {
           "INSERT INTO profile_handle_history (id, profile_id, previous_handle, new_handle, changed_at) VALUES (?, ?, ?, ?, ?)",
         ).bind(randomId("phh"), profileId, previousHandle, handle, now).run();
       }
-      await auditEvent(user.userId, "PROFILE_UPDATED", "profile", profileId, { handleChanged: previousHandle !== handle });
+      await auditEvent(user.userId, "PROFILE_UPDATED", "profile", profileId, {
+        handleChanged: previousHandle !== handle,
+        visibilityChanged: Boolean(current.isPublic) !== isPublic,
+      });
     }
 
     return jsonResponse({ profile: await findProfileByUser(user.userId) });
