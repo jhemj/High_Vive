@@ -1,4 +1,3 @@
-
 import { getD1 } from "../../../../../../db";
 import {
   CATEGORIES, METRIC_KEYS, PROTOCOL_VERSION,
