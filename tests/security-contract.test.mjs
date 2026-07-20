@@ -1,3 +1,4 @@
+
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
@@ -29,4 +30,13 @@ test("server rejects sensitive public Passport text and oversized payloads", asy
   assert.match(submit, /PUBLIC_TEXT_SENSITIVE/);
   assert.match(submit, /SUBMISSION_REPLAY/);
   assert.match(submit, /NONCE_INVALID/);
+});
+
+test("destructive account deletion requires authenticated ownership and exact Handle confirmation", async () => {
+  const source = await readFile(new URL("../app/api/v1/me/route.ts", import.meta.url), "utf8");
+  assert.match(source, /requireBrowserUser\(request\)/);
+  assert.match(source, /findProfileByUser\(user\.userId\)/);
+  assert.match(source, /payload\.confirmation !== profile\.handle/);
+  assert.match(source, /DELETE FROM profiles WHERE id = \? AND user_id = \?/);
+  assert.doesNotMatch(source, /DELETE FROM profiles WHERE handle = \?/);
 });
