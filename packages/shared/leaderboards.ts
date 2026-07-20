@@ -1,3 +1,4 @@
+
 import { getD1 } from "../../db";
 import { CATEGORIES, PROTOCOL_VERSION } from "../protocol/runtime.mjs";
 import { ApiError, jsonResponse } from "./server";
@@ -98,5 +99,5 @@ export async function leaderboardResponse(request: Request, categoryOverride?: s
     pagination: { page, pageSize, total: Number(count?.count ?? 0), hasMore: offset + pageSize < Number(count?.count ?? 0) },
     protocolVersion: PROTOCOL_VERSION,
     categories: CATEGORIES,
-  }, 200, { "cache-control": "public, max-age=30, s-maxage=60, stale-while-revalidate=300" });
+  });
 }
