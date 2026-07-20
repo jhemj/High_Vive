@@ -1,3 +1,4 @@
+
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -43,4 +44,20 @@ test("the first live Passport reset preserves the account while clearing its ass
   assert.match(migration, /DELETE FROM `assessment_sessions`/);
   assert.doesNotMatch(migration, /DELETE FROM `users`/);
   assert.doesNotMatch(migration, /DELETE FROM `profiles`/);
+});
+
+test("the one-time ngmptdz reset clears the account, profile, credentials, and benchmark history", async () => {
+  const migration = await readFile(new URL("../drizzle/0007_reset_ngmptdz_benchmark_history.sql", import.meta.url), "utf8");
+  for (const table of [
+    "passport_versions", "assessment_sessions", "evidence_commitments", "sample_proofs", "benchmark_runs",
+    "idempotency_keys", "rate_limit_buckets", "passkey_credentials", "browser_sessions", "api_tokens",
+    "auth_device_sessions", "auth_identities", "audit_events", "profile_handle_history", "users", "profiles",
+  ]) {
+    assert.match(migration, new RegExp("DELETE FROM `" + table + "`"));
+  }
+  assert.match(migration, /handle` = 'ngmptdz'/);
+  assert.match(migration, /current_passport_id` = NULL/);
+  assert.match(migration, /substr\([\s\S]*assessment:create:/);
+  assert.doesNotMatch(migration, /LIKE 'assessment:create:/);
+  assert.match(migration, /DELETE FROM `passports`[\s\S]*nickname` = 'ngmptdz'/);
 });
