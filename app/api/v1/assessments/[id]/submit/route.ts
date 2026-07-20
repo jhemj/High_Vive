@@ -1,8 +1,10 @@
+
 import { getD1 } from "../../../../../../db";
 import {
   CATEGORIES, METRIC_KEYS, PROTOCOL_VERSION,
+  buildSkillOnlyPublicProfile,
   calculateCalibratedOvr, calculateHvRating, calculateReliability, calculateTier,
-  evidenceLevelFor, validateMetricReports,
+  evidenceLevelFor, skillOnlyMetricLimitation, skillOnlyMetricRationale, validateMetricReports,
 } from "../../../../../../packages/protocol/runtime.mjs";
 import {
   ApiError, assertAssessmentActive, auditEvent, canonicalJson, cleanList, cleanText,
@@ -72,27 +74,31 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     const category = cleanText(payload.category, 30);
     if (!CATEGORIES.some((candidate) => candidate.key === category)) throw new ApiError(400, "INVALID_CATEGORY", "The category is not supported.");
-    const summary = localized(payload.summary, 800, 30);
-    const strengths = localizedList(payload.strengths);
-    const weaknesses = localizedList(payload.weaknesses);
-    const subfields = cleanList(payload.subfields, 4, 60);
-    const limitations = cleanList(payload.limitations, 8, 240);
-    if (!limitations.length) throw new ApiError(400, "LIMITATIONS_REQUIRED", "At least one assessment limitation is required.");
-    const publicText = { summary, strengths, weaknesses, subfields, limitations };
-    const sensitive = findSensitivePattern(publicText);
-    if (sensitive) throw new ApiError(422, "PUBLIC_TEXT_SENSITIVE", "Public Passport text appears to contain personal data or credentials.", { pattern: sensitive });
+    const submittedSummary = localized(payload.summary, 800, 30);
+    const submittedStrengths = localizedList(payload.strengths);
+    const submittedWeaknesses = localizedList(payload.weaknesses);
+    const submittedSubfields = cleanList(payload.subfields, 4, 60);
+    const submittedLimitations = cleanList(payload.limitations, 8, 240);
+    if (!submittedLimitations.length) throw new ApiError(400, "LIMITATIONS_REQUIRED", "At least one assessment limitation is required.");
+    const submittedPublicText = { summary: submittedSummary, strengths: submittedStrengths, weaknesses: submittedWeaknesses, subfields: submittedSubfields, limitations: submittedLimitations };
+    const submittedSensitive = findSensitivePattern(submittedPublicText);
+    if (submittedSensitive) throw new ApiError(422, "PUBLIC_TEXT_SENSITIVE", "Public Passport text appears to contain personal data or credentials.", { pattern: submittedSensitive });
 
     const metrics = Array.isArray(payload.metrics) ? payload.metrics as MetricReport[] : [];
     const metricValidation = validateMetricReports(metrics);
     if (!metricValidation.ok) throw new ApiError(400, String(metricValidation.code), "The ten metric reports are incomplete or invalid.");
     for (const metric of metrics) {
-      metric.rationale = cleanText(metric.rationale, 800, 20);
       metric.supportingEvidenceRefs = cleanList(metric.supportingEvidenceRefs, 12, 100);
       metric.counterEvidenceRefs = cleanList(metric.counterEvidenceRefs, 12, 100);
-      metric.limitation = cleanText(metric.limitation, 240);
+      metric.rationale = skillOnlyMetricRationale(metric.metric, metric.score);
+      metric.limitation = skillOnlyMetricLimitation();
     }
     const rawScores = Object.fromEntries(metrics.map((metric) => [metric.metric, Math.round(metric.score * 10) / 10]));
     if (!METRIC_KEYS.every((key) => typeof rawScores[key] === "number")) throw new ApiError(400, "METRIC_MISSING", "All ten metrics are required.");
+    const { summary, strengths, weaknesses, subfields, limitations } = buildSkillOnlyPublicProfile(rawScores);
+    const publicText = { summary, strengths, weaknesses, subfields, limitations };
+    const sensitive = findSensitivePattern(publicText);
+    if (sensitive) throw new ApiError(422, "PUBLIC_TEXT_SENSITIVE", "Generated public Passport text appears to contain personal data or credentials.", { pattern: sensitive });
 
     const evaluatorInput = payload.evaluator && typeof payload.evaluator === "object" ? payload.evaluator as Record<string, unknown> : {};
     const evaluator = {
@@ -136,7 +142,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const { calibratedScores, ovr } = calculateCalibratedOvr(rawScores);
     const initialHvRating = calculateHvRating(ovr, reliabilityScore, 50);
     const initialTier = calculateTier(initialHvRating);
-    const payloadForHash = { ...payload, nonce: "[BOUND]" };
+    const payloadForHash = { ...payload, nonce: "[BOUND]", summary, strengths, weaknesses, subfields, limitations, metrics };
     const payloadHash = `sha256:${await sha256(canonicalJson(payloadForHash))}`;
     const d1 = getD1();
     const replay = await d1.prepare("SELECT id FROM passport_versions WHERE payload_hash = ? LIMIT 1").bind(payloadHash).first();
