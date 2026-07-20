@@ -1,3 +1,4 @@
+
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
 import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -5,7 +6,8 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
-  CALIBRATION_VERSION, METRIC_KEYS, PROTOCOL_VERSION,
+  CALIBRATION_VERSION, METRIC_KEYS, PROTOCOL_VERSION, buildSkillOnlyPublicProfile,
+  skillOnlyMetricLimitation, skillOnlyMetricRationale,
 } from "@high-vive/protocol";
 import {
   defaultClaudeHome, defaultCodexHome, readJson, sanitizePrompt, scanHistory, scanPathSize,
@@ -15,6 +17,13 @@ import {
 const CONFIG_DIR = join(homedir(), ".high-vive");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 const DEFAULT_SERVER = process.env.HIGH_VIVE_SERVER || "https://high-vive-league.ngmptdz.chatgpt.site";
+const STALE_ASSESSMENT_FILES = [
+  "assessment.json",
+  "sample-manifest.json",
+  "assessment-instructions.md",
+  "passport-draft.json",
+  "submission-manifest.json",
+];
 
 function parseArgs(argv) {
   const command = argv[0] && !argv[0].startsWith("-") ? argv[0] : "help";
@@ -153,7 +162,8 @@ function witnessInstructions({ evidence, samples, draftPath, tool }) {
     `History root: ${evidence.commitment.historyRoot}\n` +
     `Calibration: ${CALIBRATION_VERSION}\n\n` +
     `Evaluate all ten metrics: ${METRIC_KEYS.join(", ")}. Use 0–39 absent, 40–59 inconsistent, 60–74 repeatable, 75–89 systematic, 90–100 exceptional. Do not inflate. Every metric needs confidence, a 20+ character rationale, one supporting evidence ref, and scores >=80 need counter evidence or a limitation.\n\n` +
-    `Return strict JSON only with: category, subfields, bilingual summary/strengths/weaknesses, metrics, evaluator {surface, model, codexVersion, calibrationVersion, anchorResults, tools}, and limitations. Never include raw paths, credentials, tool arguments, or unredacted transcript content.\n\n` +
+    `Project-content firewall: assess only the owner's observable vibe-coding behaviors. Never use, mention, quote, infer, praise, or criticize any project topic, product or client name, organization, industry, repository, file or route name, feature, artifact, programming language, framework, library, platform, or technology stack in summary, strengths, weaknesses, metric rationales, limitations, or subfields. A technically difficult or impressive project is not evidence of skill by itself. Generalize evidence into behavior such as context packaging, delegation, verification, iteration, completion, tool use, problem-rule understanding, communication, creative recovery, or token efficiency. Return subfields as an empty array.\n\n` +
+    `Return strict JSON only with: category, subfields, bilingual summary/strengths/weaknesses, metrics, evaluator {surface, model, codexVersion, calibrationVersion, anchorResults, tools}, and limitations. Never include raw paths, credentials, tool arguments, unredacted transcript content, or project content. High-Vive deterministically regenerates all public narrative from the ten scores before preview and submission.\n\n` +
     `Challenge-selected private samples (do not copy their text into the public Passport):\n${JSON.stringify(privateSamples, null, 2)}\n\n` +
     `Write the final JSON to ${draftPath}.`;
 }
@@ -175,6 +185,21 @@ async function runCodex(instructionsPath, draftPath) {
     child.on("error", rejectPromise);
     child.on("exit", (code) => code === 0 ? resolvePromise() : rejectPromise(new Error(`Codex exited with code ${code}.`)));
   });
+}
+
+function applySkillOnlyPublicCopy(draft) {
+  const metrics = Array.isArray(draft?.metrics) ? draft.metrics : [];
+  const rawScores = Object.fromEntries(metrics.map((metric) => [metric?.metric, metric?.score]));
+  const publicProfile = buildSkillOnlyPublicProfile(rawScores);
+  return {
+    ...draft,
+    ...publicProfile,
+    metrics: metrics.map((metric) => ({
+      ...metric,
+      rationale: skillOnlyMetricRationale(metric?.metric, metric?.score),
+      limitation: skillOnlyMetricLimitation(),
+    })),
+  };
 }
 
 async function runClaude(instructionsPath, draftPath) {
@@ -243,9 +268,11 @@ async function prepareAssessment(args) {
   const server = String(args.server || config.server || DEFAULT_SERVER);
   const token = String(args.token || config.token || "");
   if (!token) throw new Error("Run `high-vive login` or pass --token.");
+  const directory = outputDirectory(args);
+  await mkdir(directory, { recursive: true });
+  await Promise.all(STALE_ASSESSMENT_FILES.map((name) => rm(join(directory, name), { force: true })));
   const assessment = await startAssessment(args, token, server);
   const authToken = assessment.uploadToken || token;
-  const directory = outputDirectory(args);
   const tool = witnessTool(args);
   const evidence = await runScan(args);
   if (args["dry-run"]) { console.log("Dry run complete. Nothing was uploaded."); return null; }
@@ -278,7 +305,9 @@ async function prepareAssessment(args) {
 
 async function preview(args) {
   const directory = outputDirectory(args);
-  const draft = await readJson(join(directory, "passport-draft.json"));
+  const draftPath = join(directory, "passport-draft.json");
+  const draft = applySkillOnlyPublicCopy(await readJson(draftPath));
+  await writeJson(draftPath, draft);
   console.log("\nHigh-Vive Passport preview");
   console.log(`Category: ${draft.category || "missing"}`);
   console.log(`Summary (KO): ${sanitizePrompt(draft.summary?.ko || "", 300)}`);
@@ -290,11 +319,13 @@ async function preview(args) {
 
 async function submit(args) {
   const directory = outputDirectory(args);
-  const [assessment, draft, proofs] = await Promise.all([
+  const [assessment, rawDraft, proofs] = await Promise.all([
     readJson(join(directory, "assessment.json")),
     readJson(join(directory, "passport-draft.json")),
     readJson(join(directory, "sample-manifest.json")),
   ]);
+  const draft = applySkillOnlyPublicCopy(rawDraft);
+  await writeJson(join(directory, "passport-draft.json"), draft);
   const manifest = {
     ...draft,
     protocolVersion: PROTOCOL_VERSION,
