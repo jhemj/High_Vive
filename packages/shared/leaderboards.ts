@@ -1,4 +1,3 @@
-
 import { getD1 } from "../../db";
 import { CATEGORIES, PROTOCOL_VERSION } from "../protocol/runtime.mjs";
 import { ApiError, jsonResponse } from "./server";
