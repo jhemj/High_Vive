@@ -1,4 +1,5 @@
-import { evidenceLabel, isOfficialPassport } from "../protocol/runtime.mjs";
+
+import { buildSkillOnlyPublicProfile, evidenceLabel, isOfficialPassport } from "../protocol/runtime.mjs";
 
 function parseJson(value: unknown, fallback: unknown) {
   try {
@@ -9,6 +10,8 @@ function parseJson(value: unknown, fallback: unknown) {
 }
 
 export function serializePassportRow(row: Record<string, unknown>) {
+  const rawScores = parseJson(row.rawScoresJson, {}) as Record<string, number>;
+  const skillOnly = buildSkillOnlyPublicProfile(rawScores);
   const passport = {
     id: String(row.id),
     handle: String(row.handle),
@@ -18,11 +21,11 @@ export function serializePassportRow(row: Record<string, unknown>) {
     timezone: String(row.timezone ?? ""),
     category: String(row.category),
     assessedCategory: String(row.assessedCategory ?? row.category),
-    subfields: parseJson(row.subfieldsJson, []),
-    summary: parseJson(row.summaryJson, { ko: "", en: "" }),
-    strengths: parseJson(row.strengthsJson, { ko: [], en: [] }),
-    weaknesses: parseJson(row.weaknessesJson, { ko: [], en: [] }),
-    rawScores: parseJson(row.rawScoresJson, {}),
+    subfields: skillOnly.subfields,
+    summary: skillOnly.summary,
+    strengths: skillOnly.strengths,
+    weaknesses: skillOnly.weaknesses,
+    rawScores,
     calibratedScores: parseJson(row.calibratedScoresJson, {}),
     ovr: Number(row.ovr),
     hvRating: Number(row.hvRating),
@@ -33,7 +36,7 @@ export function serializePassportRow(row: Record<string, unknown>) {
     evidenceLevel: String(row.evidenceLevel),
     evidenceLabel: evidenceLabel(String(row.evidenceLevel)),
     evaluator: parseJson(row.evaluatorJson, {}),
-    limitations: parseJson(row.limitationsJson, []),
+    limitations: skillOnly.limitations,
     protocolVersion: String(row.protocolVersion),
     isDemo: Boolean(row.isDemo),
     status: String(row.status),
