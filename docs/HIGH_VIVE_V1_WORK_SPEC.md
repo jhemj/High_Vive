@@ -1,4 +1,3 @@
-
 # High-Vive v1.0 개발 작업명세서
 
 - 대상 저장소: `jhemj/High_Vive`
