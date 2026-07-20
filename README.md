@@ -1,3 +1,4 @@
+
 <div align="center">
 
 # HIGH-VIVE
@@ -66,7 +67,7 @@ flowchart LR
 | **Iteration Quality** | Turning intermediate results into precise, quality-improving follow-ups | 10% |
 | **Outcome Yield** | Consistently converting AI collaboration into usable outcomes | 14% |
 | **Tool Fluency** | Connecting files, terminals, Git, browsers, and data tools | 10% |
-| **Domain Clarity** | Defining the work domain, terminology, context, and standards clearly | 8% |
+| **Domain Understanding** | Understanding domain context, terminology, constraints, and quality standards, including catching domain-specific AI errors | 8% |
 | **Communication Quality** | Communicating intent, priorities, feedback, and handoffs clearly | 7% |
 | **Creativity** | Finding novel structures and practical alternatives under constraints | 8% |
 | **Token Efficiency** | Producing validated outcomes and meaningful improvement per token | 6% |
