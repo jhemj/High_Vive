@@ -1,4 +1,3 @@
-
 import { getD1 } from "../../../../../db";
 import { passportSelectSql, serializePassportRow } from "../../../../../packages/shared/passports";
 import { ApiError, errorResponse, jsonResponse, normalizeHandle } from "../../../../../packages/shared/server";
