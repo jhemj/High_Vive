@@ -1,3 +1,4 @@
+
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -46,6 +47,27 @@ type AssessmentState = {
   assessment?: { id: string; status: string; expiresAt: string; protocolVersion: string };
   commitment?: { historyRoot: string; sessionCount: number; activeDays: number } | null;
   passport?: { id: string; status: string; hvRating: number; ovr: number; reliabilityScore: number; evidenceLevel: string } | null;
+};
+
+type PassportHistoryPoint = {
+  id: string;
+  hvRating: number;
+  ovr: number;
+  reliabilityScore: number;
+  tier: string;
+  tierDivision: string | null;
+  category: string;
+  evidenceLevel: string;
+  publishedAt: string | null;
+};
+
+type PassportOverview = {
+  current: PassportHistoryPoint | null;
+  highest: PassportHistoryPoint | null;
+  history: PassportHistoryPoint[];
+  latestAssessedAt: string | null;
+  nextEligibleAt: string | null;
+  canAssessNow: boolean;
 };
 
 type CountryRanking = {
@@ -113,14 +135,14 @@ const copy = {
     emptyBody: "첫 Passport 평가를 시작하고 전 세계 바이브코더들과 실력을 비교해 보세요.",
     methodology: "HIGH-VIVE란?",
     methodTitle: "당신과 함께 일한 AI가 증명하는 Vibe Coding Benchmark",
-    methodBody: "High-Vive는 축적된 AI 협업 이력에서 실제 작업 방식을 평가합니다. 평가 결과는 비교 가능한 HV Rating과 티어로 정리되며, 새 Passport가 등록될 때 리그 순위가 갱신됩니다. 오래된 평가의 신뢰도는 시간이 지나면 서서히 낮아집니다.",
+    methodBody: "High-Vive는 축적된 AI 협업 이력에서 오직 바이브코딩 행동만 평가합니다. 프로젝트 주제·제품명·업종·기술 스택·기능 내용은 진단 문구와 점수에서 제외합니다. 평가 결과는 비교 가능한 HV Rating과 티어로 정리됩니다.",
     steps: [
       ["AUTOMATED LOCAL SCAN", "Codex 또는 Claude Code에 축적된 전체 로컬 작업 이력을 읽기 전용으로 자동 분석합니다. 한 번의 멋진 결과가 아니라 평소의 작업 방식을 봅니다."],
-      ["YOUR AI KNOWS YOUR VIBE", "당신과 실제로 일해 온 로컬 AI가 10개 지표로 Vibe Coding 역량을 평가하고, 강점과 보완점, 근거와 한계를 함께 설명합니다."],
+      ["SKILL-ONLY DIAGNOSIS", "로컬 AI가 10개 행동 지표만 점수화합니다. 공개 요약·강점·보완점은 그 점수로 다시 구성되어 프로젝트 내용이 섞이지 않습니다."],
       ["SERVER RATING", "평가 결과를 Passport로 등록하면 전 세계 바이브코더들과 OVR·HV Rating·Reliability·Provisional Tier를 비교할 수 있습니다."],
     ],
     transparency: "평가 범위",
-    transparencyBody: "특정 기기와 평가 시점에 발견된 로컬 AI 코딩 에이전트 이력을 분석한 AI Witness 평가입니다. 신원, 전체 업무 이력, 실제 성과 또는 고용 적합성을 보증하지 않습니다.",
+    transparencyBody: "특정 기기와 평가 시점에 발견된 로컬 AI 코딩 에이전트 이력에서 협업 행동만 분석한 AI Witness 평가입니다. 프로젝트 내용, 신원, 전체 업무 이력, 실제 성과 또는 고용 적합성은 평가하지 않습니다.",
     modalTitle: "내 High-Vive Passport 만들기",
     modalLead: "나와 함께 일한 로컬 AI가 작업 이력을 평가하고, 공개 가능한 결과만 Passport와 리더보드에 등록합니다.",
     profileStep: "1. 공개 프로필 만들기",
@@ -142,9 +164,31 @@ const copy = {
     claudeStartHelp: "Claude Code가 전체 작업 이력을 안전하게 살펴보고 Passport 평가를 진행합니다.",
     assessmentNotice: "평가는 작업 이력의 양에 따라 최대 10분 정도 걸릴 수 있습니다. 완료 표시가 나타날 때까지 이 창을 닫지 마세요. 재평가 제한은 실제 Passport 등록 완료 시점부터 7일이며, 오류로 끝난 시도는 차감되지 않습니다.",
     privacyTitle: "내 데이터 보호",
-    personalSettings: "개인 설정",
-    settingsTitle: "프로필 설정",
-    settingsLead: "표시할 국가와 리더보드 대표 분야를 언제든 바꿀 수 있습니다. 국가와 분야 선택은 개인 실력 점수를 바꾸지 않습니다.",
+    personalSettings: "내 정보",
+    settingsTitle: "내 정보",
+    settingsLead: "현재 Passport와 성장 기록을 확인하고 공개 범위와 프로필 설정을 관리하세요.",
+    currentPassport: "현재 Passport",
+    currentHvRating: "현재 HV Rating",
+    currentTier: "현재 티어",
+    highestTier: "역대 최고 티어",
+    scoreHistory: "점수 변화 이력",
+    noScoreHistory: "아직 공개된 Passport 기록이 없습니다.",
+    latestAssessment: "최근 평가일",
+    nextAssessment: "다음 평가 가능일",
+    availableNow: "지금 평가 가능",
+    profileSettings: "프로필 설정",
+    passportVisibility: "Passport 공개 설정",
+    publicPassport: "공개",
+    publicPassportHelp: "리더보드, 국가·분야 순위와 공개 프로필에 표시됩니다.",
+    privatePassport: "비공개",
+    privatePassportHelp: "계정과 평가 기록은 유지하고 모든 공개 순위와 프로필에서 즉시 숨깁니다.",
+    dangerZone: "계정 및 데이터 영구 삭제",
+    deleteAccount: "계정 영구 삭제",
+    deleteAccountHelp: "계정, 로그인 수단, 평가 세션, Passport와 증거 기록을 복구할 수 없게 삭제합니다.",
+    deleteConfirmTitle: "정말 모든 데이터를 삭제할까요?",
+    deleteConfirmBody: "이 작업은 되돌릴 수 없습니다. 확인하려면 아래에 내 Handle을 정확히 입력하세요.",
+    deletePermanent: "모든 데이터 영구 삭제",
+    cancel: "취소",
     countryHelp: "리더보드와 국가 랭킹에 표시할 국가 또는 지역을 선택하세요.",
     preferredCategory: "내 대표 분야",
     preferredCategoryHelp: "분야별 리더보드에서 경쟁할 분야입니다. 원본 AI 평가 분야는 Passport 이력에 그대로 보존됩니다.",
@@ -208,14 +252,14 @@ const copy = {
     emptyBody: "Start the first Passport assessment and compare your skills with vibe coders worldwide.",
     methodology: "WHAT IS HIGH-VIVE?",
     methodTitle: "The Vibe Coding Benchmark Witnessed by the AI That Works With You",
-    methodBody: "High-Vive benchmarks how you actually work across accumulated AI collaboration history. Your result becomes a comparable HV Rating and tier, and the league updates whenever a new Passport is published. The reliability of older assessments gradually decreases over time.",
+    methodBody: "High-Vive evaluates only vibe-coding behaviors across accumulated AI collaboration history. Project topics, product names, industries, technology stacks, and feature content are excluded from both narrative and scoring. The result becomes a comparable HV Rating and tier.",
     steps: [
       ["AUTOMATED LOCAL SCAN", "Your full local Codex or Claude Code work history is analyzed automatically in read-only mode. High-Vive measures how you normally work—not one polished result."],
-      ["YOUR AI KNOWS YOUR VIBE", "The local AI that has actually worked with you evaluates your Vibe Coding across ten dimensions and explains your strengths, growth areas, evidence, and limits."],
+      ["SKILL-ONLY DIAGNOSIS", "The local AI scores ten behavioral dimensions only. Public summaries, strengths, and growth areas are rebuilt from those scores so project content cannot enter the diagnosis."],
       ["SERVER RATING", "Publish the result as a Passport to compare OVR, HV Rating, Reliability, and Provisional Tier with vibe coders worldwide."],
     ],
     transparency: "Assessment scope",
-    transparencyBody: "An AI Witness assessment of local AI coding-agent history found on a specific device at a specific time. It does not prove identity, complete work history, real-world outcomes, or hiring fitness.",
+    transparencyBody: "An AI Witness assessment of collaboration behaviors found in local AI coding-agent history on a specific device at a specific time. Project content, identity, complete work history, real-world outcomes, and hiring fitness are not assessed.",
     modalTitle: "Create My High-Vive Passport",
     modalLead: "The local AI that works with you evaluates your work history. Only the public result is added to your Passport and the leaderboard.",
     profileStep: "1. Create your public profile",
@@ -237,9 +281,31 @@ const copy = {
     claudeStartHelp: "Claude Code safely reviews your full work history and prepares your Passport assessment.",
     assessmentNotice: "The assessment can take up to 10 minutes depending on your history. Keep this window open until completion appears. The seven-day reassessment limit starts only after a Passport is successfully published; failed attempts do not count.",
     privacyTitle: "Your data stays yours",
-    personalSettings: "Settings",
-    settingsTitle: "Profile settings",
-    settingsLead: "Change the country shown on your profile and the primary category where you compete. Neither choice changes your individual skill score.",
+    personalSettings: "My info",
+    settingsTitle: "My info",
+    settingsLead: "Review your current Passport and growth history, then manage visibility and profile settings.",
+    currentPassport: "Current Passport",
+    currentHvRating: "Current HV Rating",
+    currentTier: "Current tier",
+    highestTier: "All-time highest tier",
+    scoreHistory: "Rating history",
+    noScoreHistory: "You do not have a published Passport yet.",
+    latestAssessment: "Latest assessment",
+    nextAssessment: "Next assessment",
+    availableNow: "Available now",
+    profileSettings: "Profile settings",
+    passportVisibility: "Passport visibility",
+    publicPassport: "Public",
+    publicPassportHelp: "Shown on leaderboards, country and category standings, and your public profile.",
+    privatePassport: "Private",
+    privatePassportHelp: "Keeps your account and history while immediately hiding them from every public ranking and profile.",
+    dangerZone: "Permanently delete account and data",
+    deleteAccount: "Permanently delete account",
+    deleteAccountHelp: "Permanently removes your account, sign-in methods, assessments, Passports, and evidence records.",
+    deleteConfirmTitle: "Delete all of your data?",
+    deleteConfirmBody: "This cannot be undone. Enter your exact Handle below to confirm.",
+    deletePermanent: "Permanently delete all data",
+    cancel: "Cancel",
     countryHelp: "Choose the country or region shown on leaderboards and in country standings.",
     preferredCategory: "My primary category",
     preferredCategoryHelp: "This is where you compete on category leaderboards. Your original AI-assessed category remains in Passport history.",
@@ -268,7 +334,7 @@ const metricDescriptions: Record<string, LocalizedText> = {
   iterationQuality: { ko: "중간 결과를 관찰해 후속 지시를 정밀하게 개선하는 능력", en: "Turns intermediate results into precise, quality-improving follow-ups." },
   outcomeYield: { ko: "대화를 실제 사용 가능한 결과물로 완성하는 일관성", en: "Consistently converts AI collaboration into usable outcomes." },
   toolFluency: { ko: "파일·터미널·Git·브라우저·데이터 도구를 연결하는 능력", en: "Connects files, terminals, Git, browsers, and data tools." },
-  domainClarity: { ko: "업무 분야와 세부 맥락·용어·기준을 명확하게 정의하는 능력", en: "Defines the work domain, terminology, context, and standards clearly." },
+  domainClarity: { ko: "업무 분야의 맥락·용어·제약·품질 기준을 이해하고, AI의 도메인 오류를 발견·교정하는 능력", en: "Understands domain context, terminology, constraints, and quality standards, and catches domain-specific AI errors." },
   communicationQuality: { ko: "의도·우선순위·피드백·인수인계를 오해 없이 전달하는 능력", en: "Communicates intent, priorities, feedback, and handoffs clearly." },
   creativity: { ko: "제약에 맞는 새로운 구조와 실용적 대안을 탐색하는 능력", en: "Explores novel structures and practical alternatives under constraints." },
   tokenEfficiency: { ko: "토큰 대비 검증된 결과물과 개선 폭. 적게 쓰는 것 자체는 고득점이 아님", en: "Validated output and improvement per token; low use alone does not score high." },
@@ -284,341 +350,7 @@ function localized(value: LocalizedText | undefined, locale: Locale) {
 }
 
 function categoryLabel(category: string, locale: Locale) {
-  const item = CATEGORIES.find((candidate) => candidate.key === category);
-  return item?.[locale] || category;
-}
-
-function tierLabel(tier: string, locale: Locale) {
-  return locale === "ko" ? tierKo[tier] || tier : tier;
-}
-
-function dateLabel(value: string | null, locale: Locale) {
-  if (!value) return "--";
-  return new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-US", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
-}
-
-function evidenceClass(level: string) {
-  return `evidence-${level.toLowerCase()}`;
-}
-
-const platformLabels: Record<Platform, string> = { windows: "Windows", macos: "macOS", ubuntu: "Ubuntu" };
-const DEFAULT_SERVER = "https://high-vive-league.ngmptdz.chatgpt.site";
-const LEADERBOARD_CACHE_KEY = "league-v13";
-
-function detectPlatform(): Platform {
-  if (typeof navigator === "undefined") return "windows";
-  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
-  const value = `${nav.userAgentData?.platform || ""} ${navigator.platform || ""} ${navigator.userAgent || ""}`.toLowerCase();
-  if (value.includes("mac")) return "macos";
-  if (value.includes("linux") || value.includes("ubuntu")) return "ubuntu";
-  return "windows";
-}
-
-function friendlyAssessmentStatus(status: string | undefined, locale: Locale) {
-  if (!status) return locale === "ko" ? "평가 시작을 기다리고 있어요" : "Waiting for the assessment to start";
-  const labels: Record<string, LocalizedText> = {
-    DRAFT: { ko: "평가 준비 중", en: "Preparing your assessment" },
-    COMMITTED: { ko: "작업 이력 확인 완료", en: "Work history confirmed" },
-    CHALLENGED: { ko: "AI가 작업 이력을 평가하는 중", en: "Your AI is evaluating your work history" },
-    ASSESSED: { ko: "평가 결과 준비 완료", en: "Assessment result ready" },
-    SUBMITTED: { ko: "리더보드 등록 처리 중", en: "Adding your result to the leaderboard" },
-    PUBLISHED: { ko: "리더보드 등록 완료", en: "Added to the leaderboard" },
-    EXPIRED: { ko: "평가 시간이 지나 다시 시작해야 해요", en: "This assessment expired—please start again" },
-    FAILED: { ko: "평가를 완료하지 못했어요", en: "The assessment could not be completed" },
-    CANCELLED: { ko: "평가가 취소됐어요", en: "Assessment cancelled" },
-    REVOKED: { ko: "공개가 중단된 평가예요", en: "This assessment is no longer published" },
-  };
-  return labels[status]?.[locale] || status;
-}
-
-function ToolBadges({ tools = [] }: { tools?: string[] }) {
-  const normalized = Array.from(new Set(tools.length ? tools : ["codex"]));
-  return <span className="tool-badges">{normalized.map((tool) => <b className={`tool-badge tool-${tool}`} key={tool} title={tool === "codex" ? "Codex" : tool}>{tool === "codex" ? "CX" : tool === "claude-code" ? "CL" : tool.slice(0, 2).toUpperCase()}</b>)}</span>;
-}
-
-export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
-  const [locale, setLocale] = useState<Locale>(initialLocale);
-  const [boardMode, setBoardMode] = useState<BoardMode>("overall");
-  const [category, setCategory] = useState("__all__");
-  const [passports, setPassports] = useState<Passport[]>([]);
-  const [participantTotal, setParticipantTotal] = useState(0);
-  const [leaderboardVersion, setLeaderboardVersion] = useState(0);
-  const [countries, setCountries] = useState<CountryRanking[]>([]);
-  const [categoryStandings, setCategoryStandings] = useState<CategoryRanking[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState("");
-  const [standingsView, setStandingsView] = useState<"country" | "category" | null>(null);
-  const [selectedId, setSelectedId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [composerOpen, setComposerOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [viewer, setViewer] = useState<{ id: string; displayName: string; provider: string } | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [handle, setHandle] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [country, setCountry] = useState("");
-  const [profileCategory, setProfileCategory] = useState("");
-  const [profileReady, setProfileReady] = useState(false);
-  const [assessmentState, setAssessmentState] = useState<AssessmentState | null>(null);
-  const [platform, setPlatform] = useState<Platform>("windows");
-  const [witnessTool, setWitnessTool] = useState<WitnessTool>("codex");
-  const [serverOrigin, setServerOrigin] = useState(DEFAULT_SERVER);
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const t = copy[locale];
-  const categoryFilter = boardMode === "category" && category !== "__all__" ? category : "";
-  const countryFilter = boardMode === "country" ? selectedCountry : "";
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const stored = window.localStorage.getItem("high-vive-locale");
-      if (stored === "ko" || stored === "en") setLocale(stored);
-      setPlatform(detectPlatform());
-      setServerOrigin(window.location.origin);
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("passport") === "1") {
-        setComposerOpen(true);
-        params.delete("passport");
-        const query = params.toString();
-        window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  const refreshViewer = useCallback(async () => {
-    try {
-      const response = await fetch("/api/v1/me", { headers: { "x-high-vive-locale": locale }, cache: "no-store" });
-      const result = await response.json();
-      if (!response.ok) {
-        setViewer(null);
-        return;
-      }
-      setViewer(result.user);
-      if (result.profile) {
-        setHandle(result.profile.handle);
-        setDisplayName(result.profile.displayName);
-        setCountry(result.profile.country || result.suggestedCountry || "");
-        setProfileCategory(result.profile.preferredCategory || "");
-        setProfileReady(true);
-      } else {
-        setCountry(result.suggestedCountry || "");
-      }
-      setAssessmentState(result.latestAssessment || null);
-    } catch {
-      setViewer(null);
-    } finally {
-      setAuthChecked(true);
-    }
-  }, [locale]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => { void refreshViewer(); }, 0);
-    return () => window.clearTimeout(timer);
-  }, [refreshViewer]);
-
-  useEffect(() => {
-    let active = true;
-    const params = new URLSearchParams({ pageSize: "100", v: `${LEADERBOARD_CACHE_KEY}-${leaderboardVersion}` });
-    if (categoryFilter) params.set("category", categoryFilter);
-    if (countryFilter) params.set("country", countryFilter);
-    fetch(`/api/v1/leaderboards?${params}`, { headers: { "x-high-vive-locale": locale } })
-      .then(async (response) => {
-        const result = await response.json();
-        if (!response.ok) throw new Error(result?.error?.message || "Leaderboard unavailable");
-        if (active) {
-          setPassports(result.passports || []);
-          setParticipantTotal(Number(result.pagination?.total || 0));
-          setCountries(result.countries || []);
-          setCategoryStandings(result.categoryStandings || []);
-          setSelectedCountry((current) => result.countries?.some((item: CountryRanking) => item.country === current) ? current : result.countries?.[0]?.country || "");
-          setSelectedId((current) => result.passports?.some((item: Passport) => item.id === current) ? current : result.passports?.[0]?.id || "");
-        }
-      })
-      .catch((error) => active && setMessage(error instanceof Error ? error.message : String(error)))
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
-  }, [locale, assessmentState?.passport?.status, leaderboardVersion, categoryFilter, countryFilter]);
-
-  useEffect(() => {
-    const viewerId = viewer?.id;
-    if (!composerOpen || !viewerId) return;
-    let active = true;
-    const poll = async () => {
-      try {
-        const response = await fetch("/api/v1/me", { headers: { "x-high-vive-locale": locale }, cache: "no-store" });
-        const result = await response.json();
-        if (!response.ok) {
-          if (response.status === 401) setViewer(null);
-          throw new Error(result?.error?.message || t.signIn);
-        }
-        if (!active) return;
-        if (result.profile) {
-          setHandle(result.profile.handle);
-          setDisplayName(result.profile.displayName);
-          setCountry(result.profile.country || result.suggestedCountry || "");
-          setProfileCategory(result.profile.preferredCategory || "");
-          setProfileReady(true);
-        }
-        setAssessmentState(result.latestAssessment || null);
-      } catch (error) {
-        if (active) setMessage(error instanceof Error ? error.message : t.signIn);
-      }
-    };
-    void poll();
-    const timer = window.setInterval(poll, 4000);
-    return () => { active = false; window.clearInterval(timer); };
-  }, [composerOpen, locale, t.signIn, viewer?.id]);
-
-  const visible = useMemo(() => {
-    if (boardMode === "category") return passports.filter((passport) => passport.category === category);
-    if (boardMode === "country") return passports.filter((passport) => passport.country === selectedCountry);
-    return passports;
-  }, [boardMode, category, passports, selectedCountry]);
-  const selected = visible.find((passport) => passport.id === selectedId) || visible[0] || null;
-  const topThree = visible.slice(0, 3);
-  const podium = [topThree[1], topThree[0], topThree[2]].filter(Boolean) as Passport[];
-  const countryOptions = useMemo(
-    () => [...COUNTRY_CODES].sort((a, b) => countryLabel(a, locale).localeCompare(countryLabel(b, locale), locale === "ko" ? "ko" : "en")),
-    [locale],
-  );
-  const standingsRows = standingsView === "country"
-    ? countries.map((item) => ({ ...item, key: item.country, label: countryLabel(item.country, locale).replace(/^\S+\s/, ""), icon: countryFlag(item.country) }))
-    : standingsView === "category"
-      ? categoryStandings.map((item) => ({ ...item, key: item.category, label: categoryLabel(item.category, locale), icon: categoryLabel(item.category, locale).slice(0, 2).toUpperCase() }))
-      : [];
-  const medalStandings = [standingsRows[1], standingsRows[0], standingsRows[2]].filter(Boolean);
-  const terminalCommand = platform === "windows"
-    ? `powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:HIGH_VIVE_SERVER='${serverOrigin}'; $env:HIGH_VIVE_AGENT='${witnessTool}'; irm https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.ps1 | iex"`
-    : `curl -fsSL https://raw.githubusercontent.com/jhemj/High_Vive/main/scripts/install-high-vive.sh | HIGH_VIVE_SERVER='${serverOrigin}' HIGH_VIVE_AGENT='${witnessTool}' bash`;
-  const codexPrompt = locale === "ko"
-    ? `High-Vive Passport 평가를 시작해줘. jhemj/High_Vive 저장소를 열거나 내려받고 의존성을 준비한 뒤, pnpm high-vive -- prepare --server ${serverOrigin} --agent codex 를 실행해. 생성된 .high-vive/assessment-instructions.md를 읽고 정직한 passport-draft.json을 작성해. 공개 preview를 짧게 보여준 다음 pnpm high-vive -- submit을 바로 실행해. 원문 transcript와 private-evidence.json은 절대 업로드하지 마.`
-    : `Start my High-Vive Passport assessment. Open or download jhemj/High_Vive, prepare its dependencies, then run pnpm high-vive -- prepare --server ${serverOrigin} --agent codex. Read .high-vive/assessment-instructions.md and write an honest passport-draft.json. Show a short public preview, then run pnpm high-vive -- submit immediately. Never upload raw transcripts or private-evidence.json.`;
-  const codexDeepLink = `codex://new?originUrl=${encodeURIComponent("https://github.com/jhemj/High_Vive.git")}&prompt=${encodeURIComponent(codexPrompt)}`;
-  const claudePrompt = locale === "ko"
-    ? `High-Vive Passport 평가를 시작해줘. 안전한 로컬 작업 폴더에서 jhemj/High_Vive 저장소를 열거나 내려받고 의존성을 준비한 뒤, pnpm high-vive -- prepare --server ${serverOrigin} --agent claude-code 를 실행해. 생성된 .high-vive/assessment-instructions.md를 읽고 정직한 passport-draft.json을 작성해. 공개 preview를 짧게 보여준 다음 pnpm high-vive -- submit을 바로 실행해. 원문 transcript와 private-evidence.json은 절대 업로드하지 마.`
-    : `Start my High-Vive Passport assessment. In a safe local workspace, open or download jhemj/High_Vive, prepare its dependencies, then run pnpm high-vive -- prepare --server ${serverOrigin} --agent claude-code. Read .high-vive/assessment-instructions.md and write an honest passport-draft.json. Show a short public preview, then run pnpm high-vive -- submit immediately. Never upload raw transcripts or private-evidence.json.`;
-  const claudeDeepLink = `claude://code/new?q=${encodeURIComponent(claudePrompt)}`;
-
-  function switchLocale(next: Locale) {
-    setLocale(next);
-    window.localStorage.setItem("high-vive-locale", next);
-  }
-
-  function openComposer() {
-    setMessage("");
-    setSettingsOpen(false);
-    setComposerOpen(true);
-  }
-
-  function openSettings() {
-    setMessage("");
-    setComposerOpen(false);
-    setSettingsOpen(true);
-  }
-
-  function switchBoard(next: BoardMode) {
-    setBoardMode(next);
-    if (next === "category" && category === "__all__") setCategory(CATEGORIES[0]?.key || "other");
-  }
-
-  async function signOut() {
-    await fetch("/api/v1/auth/logout", { method: "POST" });
-    if (viewer?.provider === "sites") {
-      window.location.assign("/signout-with-chatgpt?return_to=%2F");
-      return;
-    }
-    window.location.assign("/");
-  }
-
-  async function saveProfile(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setMessage("");
-    try {
-      const response = await fetch("/api/v1/me/profile", {
-        method: "PATCH",
-        headers: { "content-type": "application/json", "x-high-vive-locale": locale },
-        body: JSON.stringify({ handle, displayName, isPublic: true }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result?.error?.message || "Profile update failed");
-      setProfileReady(true);
-      setHandle(result.profile.handle);
-      setDisplayName(result.profile.displayName);
-      setCountry(result.profile.country || country);
-      setProfileCategory(result.profile.preferredCategory || "");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally { setBusy(false); }
-  }
-
-  async function saveSettings(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setMessage("");
-    try {
-      const response = await fetch("/api/v1/me/profile", {
-        method: "PATCH",
-        headers: { "content-type": "application/json", "x-high-vive-locale": locale },
-        body: JSON.stringify({ handle, displayName, country, preferredCategory: profileCategory, isPublic: true }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result?.error?.message || "Profile update failed");
-      setCountry(result.profile.country || "");
-      setProfileCategory(result.profile.preferredCategory || "");
-      setSettingsOpen(false);
-      setLeaderboardVersion((value) => value + 1);
-      await refreshViewer();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally { setBusy(false); }
-  }
-
-  async function copyCommand() {
-    await navigator.clipboard.writeText(terminalCommand);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  }
-
-  return (
-    <div className="high-vive-app">
-      <header className="site-header">
-        <a className="brand" href="#top"><span className="brand-mark">HV</span><span className="brand-word">HIGH-VIVE</span><span className="brand-ko">AI WITNESS LEAGUE</span></a>
-        <div className="header-actions">
-          <div className="locale-switch" role="group" aria-label="Language">
-            <button className={locale === "ko" ? "is-active" : ""} onClick={() => switchLocale("ko")}>KO</button>
-            <button className={locale === "en" ? "is-active" : ""} onClick={() => switchLocale("en")}>EN</button>
-          </div>
-          {viewer ? <button className="button button-quiet header-settings" type="button" onClick={profileReady ? openSettings : openComposer}>{t.personalSettings}</button> : null}
-          {viewer ? <span className="header-account" title={viewer.displayName}><small>{t.signedIn}</small><b>{viewer.displayName}</b><span className="header-account-actions"><button type="button" onClick={signOut}>{t.signOut}</button></span></span> : <button className="button button-quiet header-signin" type="button" onClick={openComposer}>{t.signInButton}</button>}
-          <button className="button button-outline header-cta" onClick={openComposer}>{t.register}</button>
-        </div>
-      </header>
-
-      <main id="top">
-        <section className="league-dashboard" aria-labelledby="leaderboard-title">
-          <div className="ranking-main">
-            <div className="league-titlebar">
-              <div><p className="season-kicker">{t.benchmark}</p><h1 id="leaderboard-title">{t.title}</h1><p className="leaderboard-subtitle">{t.subtitle}</p></div>
-              <dl className="season-meta">
-                <div><dt>{t.participants}</dt><dd>{participantTotal}</dd></div>
-                <div><dt>{t.rankBasis}</dt><dd>HV</dd></div>
-              </dl>
-            </div>
-
-            <div className="leaderboard-mode-tabs" role="tablist" aria-label={locale === "ko" ? "리더보드 보기" : "Leaderboard view"}>
-              <button type="button" role="tab" aria-selected={boardMode === "overall"} className={boardMode === "overall" ? "is-active" : ""} onClick={() => switchBoard("overall")}>{t.overallBoard}</button>
-              <button type="button" role="tab" aria-selected={boardMode === "category"} className={boardMode === "category" ? "is-active" : ""} onClick={() => switchBoard("category")}>{t.categoryBoard}</button>
-              <button type="button" role="tab" aria-selected={boardMode === "country"} className={boardMode === "country" ? "is-active" : ""} onClick={() => switchBoard("country")}>{t.countryBoard}</button>
-            </div>
-
-            {boardMode === "category" ? <>
-              <div className="country-board-intro"><div><strong>{t.categoryPlayerRank}</strong><p>{t.categoryPlayerRankHelp}</p></div><button className="button button-outline" type="button" onClick={() => setStandingsView("category")}>{t.viewCategoryRank}</button></div>
-              <div className="field-tabs aggregate-filter-tabs" aria-label="Category filter">{CATEGORIES.map((item) => <button key={item.key} className={category === item.key ? "is-active" : ""} onClick={() => setCategory(item.key)}>{item[locale]}</button>)}</div>
-            </> : null}
-            {boardMode === "country" ? <>
-              <div className="country-board-intro"><div><strong>{t.countryPlayerRank}</strong><p>{t.countryPlayerRankHelp}</p></div><button className="button button-outline" type="button" onClick={() => setStandingsView("country")}>{t.viewCountryRank}</button></div>
+  const item = CATEGORIES.find((candidate) =>…6207 tokens truncated…me="country-board-intro"><div><strong>{t.countryPlayerRank}</strong><p>{t.countryPlayerRankHelp}</p></div><button className="button button-outline" type="button" onClick={() => setStandingsView("country")}>{t.viewCountryRank}</button></div>
               <div className="field-tabs aggregate-filter-tabs" aria-label={locale === "ko" ? "국가 선택" : "Country filter"}>{countries.map((nation) => <button key={nation.country} className={selectedCountry === nation.country ? "is-active" : ""} onClick={() => setSelectedCountry(nation.country)}>{countryFlag(nation.country)} {countryLabel(nation.country, locale).replace(/^\S+\s/, "")}</button>)}</div>
             </> : null}
 
@@ -713,9 +445,35 @@ export function HighViveApp({ initialLocale }: { initialLocale: Locale }) {
         </div>
         <p className="privacy-note"><strong>{t.privacyTitle}</strong> {t.privacy}</p>{message ? <p className="form-message" role="status">{message}</p> : null}</>}
       </section></div> : null}
-      {settingsOpen && viewer ? <div className="modal-backdrop"><section className="passport-modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-        <div className="modal-heading"><div><p className="eyebrow">@{handle}</p><h2 id="settings-title">{t.settingsTitle}</h2><p>{t.settingsLead}</p></div><button className="modal-close" aria-label={t.close} onClick={() => setSettingsOpen(false)}>×</button></div>
-        <form onSubmit={saveSettings}><label><span>{t.country}</span><select value={country} onChange={(event) => setCountry(event.target.value)} required><option value="">{locale === "ko" ? "국가 또는 지역 선택" : "Choose a country or region"}</option>{countryOptions.map((code) => <option value={code} key={code}>{countryLabel(code, locale)}</option>)}</select><small>{t.countryHelp}</small></label><label><span>{t.preferredCategory}</span><select value={profileCategory} onChange={(event) => setProfileCategory(event.target.value)}><option value="">{locale === "ko" ? "AI 평가 분야 사용" : "Use my AI-assessed category"}</option>{CATEGORIES.map((item) => <option value={item.key} key={item.key}>{item[locale]}</option>)}</select><small>{t.preferredCategoryHelp}</small></label><div className="settings-actions"><button className="button button-primary" disabled={busy}>{t.saveChanges}</button><button className="button button-quiet" type="button" onClick={signOut}>{t.signOut}</button></div></form>
+      {settingsOpen && viewer ? <div className="modal-backdrop"><section className="passport-modal settings-modal my-info-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div className="modal-heading"><div><p className="eyebrow">@{handle} · {profileIsPublic ? t.publicPassport : t.privatePassport}</p><h2 id="settings-title">{t.settingsTitle}</h2><p>{t.settingsLead}</p></div><button className="modal-close" aria-label={t.close} onClick={() => { setSettingsOpen(false); setDeleteConfirmOpen(false); setDeleteConfirmation(""); }}>×</button></div>
+        <section className="my-passport-overview" aria-labelledby="my-passport-title">
+          <div className="settings-section-heading"><p className="eyebrow">MY HIGH-VIVE</p><h3 id="my-passport-title">{t.currentPassport}</h3></div>
+          {passportOverview.current ? <>
+            <dl className="my-passport-stats">
+              <div><dt>{t.currentHvRating}</dt><dd>{passportOverview.current.hvRating}</dd></div>
+              <div><dt>{t.currentTier}</dt><dd>{tierLabel(passportOverview.current.tier, locale)} {passportOverview.current.tierDivision || ""}</dd></div>
+              <div><dt>{t.highestTier}</dt><dd>{passportOverview.highest ? `${tierLabel(passportOverview.highest.tier, locale)} ${passportOverview.highest.tierDivision || ""}` : "--"}</dd></div>
+              <div><dt>OVR · {t.reliability}</dt><dd>{passportOverview.current.ovr.toFixed(1)} · {passportOverview.current.reliabilityScore.toFixed(1)}</dd></div>
+            </dl>
+            <div className="rating-history-heading"><strong>{t.scoreHistory}</strong><span>{passportOverview.history.length} PASSPORT{passportOverview.history.length === 1 ? "" : "S"}</span></div>
+            <RatingHistoryChart history={passportOverview.history} locale={locale} />
+            <dl className="assessment-dates"><div><dt>{t.latestAssessment}</dt><dd>{dateLabel(passportOverview.latestAssessedAt, locale)}</dd></div><div><dt>{t.nextAssessment}</dt><dd>{passportOverview.canAssessNow ? t.availableNow : dateLabel(passportOverview.nextEligibleAt, locale)}</dd></div></dl>
+          </> : <div className="my-info-empty"><p>{t.noScoreHistory}</p><button className="button button-outline" type="button" onClick={openComposer}>{t.register}</button></div>}
+        </section>
+        <form className="profile-settings-form" onSubmit={saveSettings}>
+          <div className="settings-section-heading"><p className="eyebrow">PROFILE</p><h3>{t.profileSettings}</h3></div>
+          <label><span>{t.country}</span><select value={country} onChange={(event) => setCountry(event.target.value)} required><option value="">{locale === "ko" ? "국가 또는 지역 선택" : "Choose a country or region"}</option>{countryOptions.map((code) => <option value={code} key={code}>{countryLabel(code, locale)}</option>)}</select><small>{t.countryHelp}</small></label>
+          <label><span>{t.preferredCategory}</span><select value={profileCategory} onChange={(event) => setProfileCategory(event.target.value)}><option value="">{locale === "ko" ? "AI 평가 분야 사용" : "Use my AI-assessed category"}</option>{CATEGORIES.map((item) => <option value={item.key} key={item.key}>{item[locale]}</option>)}</select><small>{t.preferredCategoryHelp}</small></label>
+          <fieldset className="visibility-settings"><legend>{t.passportVisibility}</legend><div className="visibility-options">
+            <label className={profileIsPublic ? "is-selected" : ""}><input type="radio" name="passport-visibility" checked={profileIsPublic} onChange={() => setProfileIsPublic(true)} /><span><b>{t.publicPassport}</b><small>{t.publicPassportHelp}</small></span></label>
+            <label className={!profileIsPublic ? "is-selected" : ""}><input type="radio" name="passport-visibility" checked={!profileIsPublic} onChange={() => setProfileIsPublic(false)} /><span><b>{t.privatePassport}</b><small>{t.privatePassportHelp}</small></span></label>
+          </div></fieldset>
+          <div className="settings-actions"><button className="button button-primary" disabled={busy}>{t.saveChanges}</button><button className="button button-quiet" type="button" onClick={signOut}>{t.signOut}</button></div>
+        </form>
+        <section className="danger-zone" aria-labelledby="danger-title"><div><h3 id="danger-title">{t.dangerZone}</h3><p>{t.deleteAccountHelp}</p></div>
+          {!deleteConfirmOpen ? <button className="button button-danger" type="button" onClick={() => setDeleteConfirmOpen(true)}>{t.deleteAccount}</button> : <div className="delete-confirmation"><strong>{t.deleteConfirmTitle}</strong><p>{t.deleteConfirmBody}</p><label><span>@{handle}</span><input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value.toLowerCase())} autoComplete="off" spellCheck={false} /></label><div className="settings-actions"><button className="button button-danger" type="button" disabled={busy || deleteConfirmation !== handle} onClick={deleteAccount}>{t.deletePermanent}</button><button className="button button-quiet" type="button" onClick={() => { setDeleteConfirmOpen(false); setDeleteConfirmation(""); }}>{t.cancel}</button></div></div>}
+        </section>
         {message ? <p className="form-message" role="status">{message}</p> : null}
       </section></div> : null}
     </div>
