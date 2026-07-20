@@ -1,4 +1,3 @@
-
 export const PROTOCOL_VERSION = "high-vive-witness-v1.0";
 export const SCANNER_VERSION = "high-vive-cli-v1.1";
 export const CANONICALIZATION_VERSION = "hv-canonical-json-v1";
